@@ -7,8 +7,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import traceback
 
-from core.base_cleaner import DataCleaner
-# from tests.test_framework import TestRunner
+from tests.test_framework import TestRunner
 
 
 class DataCleaningPipeline:
@@ -16,7 +15,7 @@ class DataCleaningPipeline:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        # self.test_runner = TestRunner()
+        self.test_runner = TestRunner()
         self._discovered_cleaners = {}
         self._discover_cleaners()
 
@@ -64,15 +63,8 @@ class DataCleaningPipeline:
             if hasattr(module, 'Cleaner'):
                 cleaner_class = getattr(module, 'Cleaner')
 
-                # Verify it inherits from DataCleaner
-                if issubclass(cleaner_class, DataCleaner):
-                    self._discovered_cleaners[cleaner_name] = cleaner_class
-                    self.logger.info(f"Discovered cleaner: {cleaner_name}")
-                else:
-                    raise ValueError(
-                        f"Cleaner class in {cleaner_name}/data_cleaner.py "
-                        f"does not inherit from DataCleaner"
-                    )
+                self._discovered_cleaners[cleaner_name] = cleaner_class
+                self.logger.info(f"Discovered cleaner: {cleaner_name}")
             else:
                 raise ValueError(
                     f"No 'Cleaner' class found in {cleaner_name}/data_cleaner.py"
@@ -165,17 +157,17 @@ class DataCleaningPipeline:
                 return None
 
             # Run standard tests
-            # test_results = self.test_runner.run_tests(cleaner_name, cleaned_df)
+            test_results = self.test_runner.run_tests(cleaner_name, cleaned_df)
 
-            # if test_only:
-            #     self.logger.info(f"Test results: {test_results}")
-            #     return cleaned_df if test_results['passed'] else None
-            #
-            # if not test_results['passed']:
-            #     self.logger.error(
-            #         f"Tests failed for {cleaner_name}: {test_results['errors']}"
-            #     )
-            #     return None
+            if test_only:
+                self.logger.info(f"Test results: {test_results}")
+                return cleaned_df if test_results['passed'] else None
+
+            if not test_results['passed']:
+                self.logger.error(
+                    f"Tests failed for {cleaner_name}: {test_results['errors']}"
+                )
+                return None
 
             # Save cleaned data
             if output_dir:

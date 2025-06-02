@@ -1,0 +1,57 @@
+# Custom tests for the example cleaner with date/value/category data
+tests:
+  # Ensure core columns have no nulls
+  required_fields_complete:
+    type: no_nulls
+    params:
+      columns: [date, value, category]
+    severity: error
+
+  # Value should be roughly in expected range (mean=50, std=10)
+  value_reasonable_range:
+    type: value_range
+    params:
+      column: value
+      min: 0      # 5 std devs below mean
+      max: 100    # 5 std devs above mean
+    severity: warning
+
+  # Category should only be A, B, or C
+  valid_categories:
+    type: allowed_values
+    params:
+      column: category
+      values: [A, B, C]
+    severity: error
+
+  # Date should be unique (daily data)
+  unique_dates:
+    type: unique_keys
+    params:
+      columns: [date]
+    severity: error
+
+  # Verify date continuity (no gaps in daily data)
+  date_continuity_check:
+    type: date_continuity
+    params:
+      column: date
+      frequency: D
+    severity: error
+
+  # Check value distribution is roughly normal
+  value_normality:
+    type: distribution_normal
+    params:
+      column: value
+      alpha: 0.01
+    severity: warning
+
+  # Check for outliers in value column
+  value_outliers:
+    type: outliers_zscore
+    params:
+      column: value
+      threshold: 3
+      max_percentage: 5
+    severity: warning
