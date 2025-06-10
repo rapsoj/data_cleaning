@@ -3,7 +3,7 @@
 # 🧼 Beginner’s Guide: How to Add a Data Cleaner
 
 Welcome! 👋
-This guide will help you write a **data cleaner** that fits into our machine learning project. Don’t worry if you’re new — we’ll walk through it step by step.
+This guide will help you write a **data cleaner** that fits into our machine learning project. Don’t worry if you’re new — we’ll walk through it step by step. For this process, the `Data Sources` tab of the `project-tracking` file for your project will be very useful. Please consult this document while cleaning your data to understand necessary specifications for the cleanded data and to track cleaning progress.
 
 ---
 
@@ -12,8 +12,8 @@ This guide will help you write a **data cleaner** that fits into our machine lea
 A **data cleaner** is just some Python code that:
 
 1. **Downloads** some raw data
-2. **Cleans it up** (like fixing missing values or typos)
-3. **Returns a clean DataFrame** (a nice, organized table)
+2. **Cleans it up** (like fixing missing values, typos, incorrect data types, and selecting columns of interest)
+3. **Returns fully cleaned data** (fully cleaned data of the format specified in the `project-tracking` file)
 
 Our system takes care of saving the results and running your code — you just need to follow a few rules.
 
@@ -21,7 +21,7 @@ Our system takes care of saving the results and running your code — you just n
 
 ## 🧪 How It Works
 
-* You write a Python file called `data_cleaner.py`
+* You write a Python file called `data_cleaner.py` (replace `data_cleaner` with the `Cleaner File` name specified in the `project-tracking` file)
 * Inside it, you create a class called `Cleaner`
 * You fill in a few functions with your download + cleaning steps
 * We run your code with a simple command — no extra setup needed!
@@ -47,81 +47,132 @@ Here’s what to do:
    - Check for **missing data** with `.isna().sum()`  
    - Look for **weird values** or **outliers** that don’t make sense
 
-   This step is *extremely* important! Don’t treat the data like a black box — the more you understand it, the better your cleaner will be. 
+   This step is *extremely* important! Don’t treat the data like a black box — the more you understand it, the better your cleaner will be.
+
+   You will become your project's resident expert on this dataset, so make sure you understand what all the columns mean and how they relate to each other and the target variable.
 
    You’ll also start to spot what needs fixing:  
    Maybe there are typos, or missing values, or strange formats (like `"N/A"` instead of real nulls). Write these things down — they’ll guide your cleaning code.
+
+4. **Test cleaning functions**
+   You can use this notebook (or your preferred IDE) to test functions you will eventually need to write for the cleaner. Figure out how to download (or load) the data, perform thre necessary cleaning steps, and return the cleaned data in the format specified in the project-tracking file.
    
+---
+
+Here's your updated **README** section with **clear Git instructions** for both the **terminal** and **GitHub Desktop** workflows. It's written in markdown format, easy to copy:
+
 ---
 
 ## 🚀 How to Start
 
-### ✅ Option 1: Add Your Code to *This* Project
+Follow these steps to add your cleaner to the project.
 
-1. **Open a terminal** (or command line).
+### 🧰 Step 1: Clone the GitHub Repo
 
-2. **Make a folder** for your cleaner:
+You can do this using **Terminal** (for more control) or **GitHub Desktop** (easier UI).
 
-   ```bash
-   mkdir cleaners/my_cleaner
-   ```
+---
 
-3. **Create this Python file** in that folder (called `data_cleaner.py`):
+#### ➡️ Option A: Using GitHub Desktop (Beginner-Friendly)
 
-   ```python
-   from core.base_cleaner import DataCleaner
+1. Install GitHub Desktop: [https://desktop.github.com](https://desktop.github.com)
+
+2. Open GitHub Desktop and **clone the repository**:
+
+   * Click `File` → `Clone Repository`
+   * Find the repo under the `URL` or `GitHub.com` tab
+   * Choose a local folder (e.g., `Documents/cleaning-pipeline`)
+
+3. Once it’s cloned, click `Open in VS Code` or navigate to the folder manually.
+
+---
+
+#### ➡️ Option B: Using the Terminal (More Advanced)
+
+1. Open your terminal or command prompt
+2. Run the following to clone the repo:
+
+   git clone [https://github.com/your-org/data-cleaning-pipeline.git](https://github.com/your-org/data-cleaning-pipeline.git)
+   cd data-cleaning-pipeline
+
+---
+
+### 🏗 Step 2: Add Your Cleaner
+
+1. Inside the project folder, go to the `cleaners/` directory
+
+2. Inside that folder, create the file named as instructed in the `project-tracking.md` (replacing `data\_cleaner.py`). It should be saved as:
+
+   cleaners/data\_cleaner.py
+
+3. Paste the following example inside your new file and update it with your own data logic (see "What You Have to Write" section for details):
+
+   from core.base\_cleaner import DataCleaner
    import pandas as pd
    from typing import Dict, Any
 
    class Cleaner(DataCleaner):
-       """This cleaner downloads and cleans my cool dataset."""
+   """This cleaner downloads and cleans my cool dataset."""
 
-       def download_to_df(self) -> pd.DataFrame:
-           # Download your data here
-           return pd.read_csv("https://example.com/mydata.csv")
-
-       def clean_from_df(self, df: pd.DataFrame) -> pd.DataFrame:
-           # Clean the data
-           df = df.dropna()
-           return df
-
-       def get_metadata(self) -> Dict[str, Any]:
-           return {
-               'source_name': 'My Source',
-               'variables': ['col1', 'col2'],
-               'temporal_resolution': 'daily',
-               'spatial_resolution': 'city'
-           }
    ```
+   def download_to_df(self) -> pd.DataFrame:  
+       return pd.read_csv("https://example.com/mydata.csv")  
 
-4. **Test your cleaner**:
+   def clean_from_df(self, df: pd.DataFrame) -> pd.DataFrame:  
+       df = df.dropna()  
+       return df  
 
-   ```bash
-   python data_cleaning.py --cleaner my_cleaner --test
+   def get_metadata(self) -> Dict[str, Any]:  
+       return {  
+           'source_name': 'My Source',  
+           'variables': ['col1', 'col2'],  
+           'temporal_resolution': 'daily',  
+           'spatial_resolution': 'city'  
+       }
    ```
 
 ---
 
-### ✅ Option 2: Use Your Own GitHub Repo
+### 🧪 Step 3: Test Your Cleaner
 
-If you don’t want to add to this project, you can make your own mini-project.
+Open a terminal in the root of the project (same folder as `data_cleaning.py`), then run:
 
-1. Make a folder (or repo) that looks like this:
+python data\_cleaning.py --cleaner my\_cleaner --test
 
-   ```
-   my_repo/
-   ├── data_cleaner.py      ✅ Must be named exactly this
-   └── requirements.txt     🧪 Optional (extra packages like pandas, requests)
-   ```
+If everything works, you’ll see logs confirming that your data was downloaded and cleaned.
 
-2. Write a `Cleaner` class in `data_cleaner.py` (same as above)
+---
 
-3. Share the link to your repo with us. We’ll run:
+### ✅ Step 4: Commit and Push Your Changes
 
-   ```bash
-   git clone https://github.com/you/my_repo.git external_cleaners/my_cleaner
-   python data_cleaning.py --cleaner my_cleaner
-   ```
+#### ➡️ Option A: Using GitHub Desktop
+
+1. GitHub Desktop will automatically show your changes
+2. Write a summary in the `Commit message` box (e.g., “Add my\_cleaner for XYZ data”)
+3. Click `Commit to main` (or your current branch)
+4. Click `Push origin` in the top bar to upload your changes
+
+#### ➡️ Option B: Using Terminal
+
+1. Stage your changes:
+
+   git add cleaners/my\_cleaner/
+
+2. Commit with a message:
+
+   git commit -m "Add my\_cleaner for XYZ data"
+
+3. Push to GitHub:
+
+   git push origin main
+   *(or replace `main` with your current branch if you're not on main)*
+
+---
+
+You're done! 🎉
+Once your cleaner is added and pushed, it will be automatically picked up by the pipeline and tested.
+
+Let us know if you need help — we're here to support you!
 
 ---
 
@@ -133,11 +184,11 @@ Your `Cleaner` class needs to have 3 functions:
 
 ### 1. `download_to_df()`
 
-Machine learning pipelines often require dynamic data to be periodically downloaded from the source. If your dataset is dynamic (check your project's project-tracking file under `Update Frequency`), then you need to write code to download the data from the source. This might require just using a link to directly download the CSV, working with an API, or even webscraping.  
+Machine learning pipelines often require dynamic data to be periodically downloaded from the source. If your dataset is dynamic (check your project's `project-tracking` file under `Update Frequency`), then you need to write code to download the data from the source. This might require just using a link to directly download the CSV, working with an API, or even webscraping.  
 
 The `download_to_df()` function will be used to download your raw data from the source. It must return a **pandas DataFrame**.
 
-If your dataset is static (check your project's project-tracking file under `Update Frequency`), then you simply need to load the data from its repo path.
+If your dataset is static (check your project's `project-tracking` file under `Update Frequency`), then you simply need to load the data from its repo path.
 
 Example:
 
@@ -150,7 +201,7 @@ def download_to_df(self):
 
 ### 2. `clean_from_df(df)`
 
-This function takes in that raw DataFrame and cleans it.
+This function takes in that raw DataFrame and cleans it. Think carefully about what cleaning needs to be done and which variables need to be selected.
 
 Example:
 
