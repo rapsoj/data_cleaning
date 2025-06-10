@@ -15,7 +15,7 @@ class Cleaner(DataCleaner):
         self.logger = logging.getLogger(__name__)
 
     def download_to_df(self) -> pd.DataFrame:
-        """Download data directly to a DataFrame"""
+        """Download data from source if it is dynamic or from the repo if it is static"""
         self.logger.info("Downloading data to memory...")
 
         # Or generate sample data for demonstration
