@@ -1,5 +1,3 @@
-Got it! Here's a **super beginner-friendly version** of the README — written like you're explaining it to someone who barely knows Python and has never contributed to a data pipeline before.
-
 ---
 
 # 🧼 Beginner’s Guide: How to Add a Data Cleaner
@@ -28,6 +26,32 @@ Our system takes care of saving the results and running your code — you just n
 * You fill in a few functions with your download + cleaning steps
 * We run your code with a simple command — no extra setup needed!
 
+---
+
+## 🏁 Before You Start
+
+Before you write any code, take a bit of time to **understand your dataset**. This step is crucial — better models come from better data, and better data starts with you!
+
+Here’s what to do:
+
+1. **Check which dataset you're working on**  
+   Your team lead will assign you a dataset. You can also look in the `project-tracking` file to see what project and data you're responsible for.
+
+2. **Explore the dataset in a notebook**  
+   Open a Jupyter notebook and load the data (you can use `pandas.read_csv()` or whatever format it's in). Then:
+
+   - Look at a few rows with `.head()`  
+   - Check the column names and data types with `.info()`  
+   - Use `.describe()` to get a feel for the numbers  
+   - Plot the key variables using `matplotlib` or `seaborn`  
+   - Check for **missing data** with `.isna().sum()`  
+   - Look for **weird values** or **outliers** that don’t make sense
+
+   This step is *extremely* important! Don’t treat the data like a black box — the more you understand it, the better your cleaner will be. 
+
+   You’ll also start to spot what needs fixing:  
+   Maybe there are typos, or missing values, or strange formats (like `"N/A"` instead of real nulls). Write these things down — they’ll guide your cleaning code.
+   
 ---
 
 ## 🚀 How to Start
@@ -109,7 +133,11 @@ Your `Cleaner` class needs to have 3 functions:
 
 ### 1. `download_to_df()`
 
-This function downloads your raw data. It must return a **pandas DataFrame**.
+Machine learning pipelines often require dynamic data to be periodically downloaded from the source. If your dataset is dynamic (check your project's project-tracking file under `Update Frequency`), then you need to write code to download the data from the source. This might require just using a link to directly download the CSV, working with an API, or even webscraping.  
+
+The `download_to_df()` function will be used to download your raw data from the source. It must return a **pandas DataFrame**.
+
+If your dataset is static (check your project's project-tracking file under `Update Frequency`), then you simply need to load the data from its repo path.
 
 Example:
 
