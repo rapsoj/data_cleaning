@@ -272,22 +272,20 @@ When we run your cleaner, the system checks:
 * Are the data types consistent?
 * Is memory usage too high?
 
-To test it yourself:
-
-```bash
-python data_cleaning.py --cleaner my_cleaner --test
-```
-
 ---
 
 ## ✅ Quick Checklist
 
 ✅ You made a folder in `cleaners/`
 
-✅ You created a `data_cleaner.py`
+✅ You created a `data_cleaner.py` (replace the file name with the `Cleaner File` name from the `project-tracking` document)
+
 ✅ You made a `Cleaner` class
+
 ✅ You filled in `download_to_df()`, `clean_from_df()`, and `get_metadata()`
+
 ✅ You tested it with the command
+
 ✅ You’re done 🎉
 
 ---
