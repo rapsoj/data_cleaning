@@ -18,30 +18,30 @@ class Cleaner(DataCleaner):
         """Download data from source if it is dynamic or from the repo if it is static"""
         self.logger.info("Downloading data to memory...")
 
-        # Or generate sample data for demonstration
-        df = pd.DataFrame({
-            'date': pd.date_range('2023-01-01', periods=365, freq='D'),
-            'value': np.random.randn(365) * 10 + 50,
-            'category': np.random.choice(['A', 'B', 'C'], 365)
-        })
+        #### Your code here
+        #### df = ...
 
         self.logger.info(f"Downloaded {len(df)} records")
         return df
 
-    def clean_from_df(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean the DataFrame"""
+    def clean_from_df(self, data) -> object:
+        """Clean the input tabular data (e.g., DataFrame, GeoDataFrame, etc.)."""
         self.logger.info("Cleaning data...")
 
         # Make a copy to avoid modifying the original
-        cleaned = df.copy()
+        df = data.copy()
 
-        # Example cleaning operations
-        cleaned['date'] = pd.to_datetime(cleaned['date'])
-        cleaned['value'] = cleaned['value'].fillna(cleaned['value'].mean())
-        cleaned['category'] = cleaned['category'].str.upper()
-
-        # Remove outliers
-        cleaned = cleaned[cleaned['value'].between(-100, 200)]
+        #### Your code here
+        #### df = ...
 
         self.logger.info(f"Cleaned data has {len(cleaned)} records")
         return cleaned
+
+   def get_metadata(self) -> Dict[str, Any]:  
+       return {  
+           'source_name': '', # Copy from project-tracking file
+           'variables': {} # Write all variables 
+           'temporal_resolution': '',
+           'spatial_resolution': '',
+           'update_frequency': ''
+       }

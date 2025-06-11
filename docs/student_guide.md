@@ -112,7 +112,7 @@ You can do this using **Terminal** (for more control) or **GitHub Desktop** (eas
    from typing import Dict, Any
 
    class Cleaner(DataCleaner):
-   """This cleaner downloads and cleans my cool dataset."""
+   """This cleaner downloads and cleans my dataset."""
 
    ```
    def download_to_df(self) -> pd.DataFrame:  
@@ -201,7 +201,7 @@ def download_to_df(self):
 
 ### 2. `clean_from_df(df)`
 
-This function takes in that raw DataFrame and cleans it. Think carefully about what cleaning needs to be done and which variables need to be selected.
+This function takes in that raw DataFrame and cleans it. Think carefully about what cleaning needs to be done and which variables need to be selected. Ensure that the specified `Join Key` columns from the `project-tracking` file are present. This ensures your data can be linked with the other data in the pipeline.
 
 Example:
 
@@ -224,7 +224,12 @@ Example:
 def get_metadata(self):
     return {
         'source_name': 'World Bank',
-        'variables': ['population', 'gdp'],
+        'variables': {
+        'population': 'Number of people in the country',
+        'gdp': 'Gross Domestic Product, in 2005 dollars',
+        'year': 'Year',
+        'country': 'Country'
+        },
         'temporal_resolution': 'yearly',
         'spatial_resolution': 'country'
     }
