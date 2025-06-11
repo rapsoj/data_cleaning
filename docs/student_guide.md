@@ -125,9 +125,12 @@ You can do this using **Terminal** (for more control) or **GitHub Desktop** (eas
    def get_metadata(self) -> Dict[str, Any]:  
        return {  
            'source_name': 'My Source',  
-           'variables': ['col1', 'col2'],  
-           'temporal_resolution': 'daily',  
-           'spatial_resolution': 'city'  
+           'variables': {
+           'col1': 'Description',
+           'col2': 'Description
+           },  
+           'temporal_resolution': 'Daily',  
+           'spatial_resolution': 'City'  
        }
    ```
 
