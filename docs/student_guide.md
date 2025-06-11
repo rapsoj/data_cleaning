@@ -140,7 +140,9 @@ You can do this using **Terminal** (for more control) or **GitHub Desktop** (eas
 
 Open a terminal in the root of the project (same folder as `data_cleaning.py`), then run:
 
+```bash
 python data\_cleaning.py --cleaner my\_cleaner --test
+```
 
 If everything works, you’ll see logs confirming that your data was downloaded and cleaned.
 
