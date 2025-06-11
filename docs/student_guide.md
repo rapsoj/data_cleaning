@@ -92,8 +92,10 @@ You can do this using **Terminal** (for more control) or **GitHub Desktop** (eas
 1. Open your terminal or command prompt
 2. Run the following to clone the repo:
 
+   ```bash
    git clone [https://github.com/your-org/data-cleaning-pipeline.git](https://github.com/your-org/data-cleaning-pipeline.git)
    cd data-cleaning-pipeline
+   ```
 
 ---
 
@@ -101,20 +103,24 @@ You can do this using **Terminal** (for more control) or **GitHub Desktop** (eas
 
 1. Inside the project folder, go to the `cleaners/` directory
 
-2. Inside that folder, create the file named as instructed in the `project-tracking.md` (replacing `data\_cleaner.py`). It should be saved as:
+2. Inside that folder, create the cleaning file. It should be saved as:
 
-   cleaners/data\_cleaner.py
+   ```bash
+   cleaners/data_cleaner.py
+   ```
+
+   Replacing `data_cleaner.py` with the `Cleaner File` name from the `project-tracking` document.
 
 3. Paste the following example inside your new file and update it with your own data logic (see "What You Have to Write" section for details):
 
-   from core.base\_cleaner import DataCleaner
+   ``` python
+   from core.base_cleaner import DataCleaner
    import pandas as pd
    from typing import Dict, Any
 
    class Cleaner(DataCleaner):
    """This cleaner downloads and cleans my dataset."""
 
-   ```
    def download_to_df(self) -> pd.DataFrame:  
        return pd.read_csv("https://example.com/mydata.csv")  
 
@@ -141,8 +147,9 @@ You can do this using **Terminal** (for more control) or **GitHub Desktop** (eas
 Open a terminal in the root of the project (same folder as `data_cleaning.py`), then run:
 
 ```bash
-python data\_cleaning.py --cleaner my\_cleaner --test
+python data_cleaning.py --cleaner my_cleaner --test
 ```
+Replacing `data_cleaner.py` with the `Cleaner File` name from the `project-tracking` document.
 
 If everything works, you’ll see logs confirming that your data was downloaded and cleaned.
 
@@ -153,23 +160,29 @@ If everything works, you’ll see logs confirming that your data was downloaded 
 #### ➡️ Option A: Using GitHub Desktop
 
 1. GitHub Desktop will automatically show your changes
-2. Write a summary in the `Commit message` box (e.g., “Add my\_cleaner for XYZ data”)
+2. Write a summary in the `Commit message` box (e.g., “Add my_cleaner for XYZ data”)
 3. Click `Commit to main` (or your current branch)
 4. Click `Push origin` in the top bar to upload your changes
 
 #### ➡️ Option B: Using Terminal
 
 1. Stage your changes:
-
-   git add cleaners/my\_cleaner/
+   
+   ```bash
+   git add cleaners/my_cleaner/
+   ```
 
 2. Commit with a message:
 
+   ```bash
    git commit -m "Add my\_cleaner for XYZ data"
+   ```
 
 3. Push to GitHub:
-
+   
+   ```bash
    git push origin main
+   ```
    *(or replace `main` with your current branch if you're not on main)*
 
 ---
@@ -247,7 +260,7 @@ def get_metadata(self):
 * Raw downloads go in: `data/raw/`
 * Temporary stuff goes in: `data/temp/`
 * Cleaned data is **automatically saved** in:
-  `data/cleaned/my_cleaner_cleaned.csv`
+  `data/cleaned/my_data_cleaned.csv`
 
 ⚠️ You don’t need to save files yourself — just return the DataFrame!
 
