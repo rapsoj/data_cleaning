@@ -142,16 +142,33 @@ You can do this using **Terminal** (for more control) or **GitHub Desktop** (eas
 
 ---
 
+Here’s an improved version of **Step 3** with clearer folder navigation instructions:
+
+---
+
 ### 🧪 Step 3: Test Your Cleaner
 
-Open a terminal in the root of the project (same folder as `data_cleaning.py`), then run:
+1. **Open a terminal window**.
 
-```bash
-python data_cleaning.py --cleaner my_cleaner --test
-```
-Replacing `data_cleaner.py` with the `Cleaner File` name from the `project-tracking` document.
+2. **Navigate to the root folder** of the project — the one that contains `data_cleaning.py`.
+   If you used GitHub Desktop, right-click the folder and choose “Open in Terminal” or “Open in Command Prompt”.
+   If you're using the terminal, use the `cd` (change directory) command to go there. For example:
 
-If everything works, you’ll see logs confirming that your data was downloaded and cleaned.
+   ```bash
+   cd ~/Documents/data-cleaning-pipeline
+   ```
+
+   Adjust the path depending on where you cloned the repo.
+
+3. Once you're in the root folder, run the cleaner test command:
+
+   ```bash
+   python data_cleaning.py --cleaner my_cleaner --test
+   ```
+
+   Replacing `data_cleaner.py` with the `Cleaner File` name from the `project-tracking` document.
+
+If everything is working, you'll see logs confirming that your data was **downloaded, cleaned**, and saved.
 
 ---
 
