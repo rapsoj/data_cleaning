@@ -283,6 +283,7 @@ python data_cleaning.py --cleaner my_cleaner --test
 ## ✅ Quick Checklist
 
 ✅ You made a folder in `cleaners/`
+
 ✅ You created a `data_cleaner.py`
 ✅ You made a `Cleaner` class
 ✅ You filled in `download_to_df()`, `clean_from_df()`, and `get_metadata()`
