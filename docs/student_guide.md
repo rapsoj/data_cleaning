@@ -106,10 +106,10 @@ You can do this using **Terminal** (for more control) or **GitHub Desktop** (eas
 2. Inside that folder, create the cleaning file. It should be saved as:
 
    ```bash
-   cleaners/data_cleaner.py
+   cleaners/data_cleaner/data_cleaner.py
    ```
 
-   Replacing `data_cleaner.py` with the `Cleaner File` name from the `project-tracking` document.
+   Replacing `data_cleaner` with the `Cleaner File` name from the `project-tracking` document.
 
 3. Paste the following example inside your new file and update it with your own data logic (see "What You Have to Write" section for details):
 
@@ -166,7 +166,7 @@ Here’s an improved version of **Step 3** with clearer folder navigation instru
    python data-cleaning/data_cleaning.py --cleaner my_cleaner --test
    ```
 
-   Replacing `data_cleaner.py` with the `Cleaner File` name from the `project-tracking` document.
+   Replacing `data_cleaner` with the `Cleaner File` name from the `project-tracking` document.
 
 If everything is working, you'll see logs confirming that your data was **downloaded, cleaned**, and saved.
 
@@ -313,7 +313,7 @@ When we run your cleaner, the system checks:
 
 ✅ You made a folder in `cleaners/`
 
-✅ You created a `data_cleaner.py` (replace the file name with the `Cleaner File` name from the `project-tracking` document)
+✅ You created a `data_cleaner` (replace the file name with the `Cleaner File` name from the `project-tracking` document)
 
 ✅ You made a `Cleaner` class
 
