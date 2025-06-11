@@ -163,7 +163,7 @@ Here’s an improved version of **Step 3** with clearer folder navigation instru
 3. Once you're in the root folder, run the cleaner test command:
 
    ```bash
-   python data_cleaning.py --cleaner my_cleaner --test
+   python data-cleaning/data_cleaning.py --cleaner my_cleaner --test
    ```
 
    Replacing `data_cleaner.py` with the `Cleaner File` name from the `project-tracking` document.
