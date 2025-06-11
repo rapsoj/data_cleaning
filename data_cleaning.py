@@ -9,7 +9,7 @@ import traceback
 import subprocess
 from importlib import metadata
 
-from tests.test_framework import TestRunner
+from data_cleaning.tests.test_framework import TestRunner
 
 
 class DataCleaningPipeline:

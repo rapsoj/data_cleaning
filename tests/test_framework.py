@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import logging
 
-from tests.test_registry import TestRegistry
+from data_cleaning.tests.test_registry import TestRegistry
 
 
 class TestRunner:
