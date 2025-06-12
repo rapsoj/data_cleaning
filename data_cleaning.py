@@ -1,493 +1,330 @@
-import importlib
+"""
+Data cleaning pipeline runner
+Runs the cleaner defined in cleaner.py (or another file specified via --cleaner-file)
+"""
+import importlib.util
 import sys
 from pathlib import Path
 import pandas as pd
-from typing import List, Dict, Any, Optional, Set
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import traceback
-import subprocess
-from importlib import metadata
+from typing import Optional, Dict, Any
 
-from data_cleaning.tests.test_framework import TestRunner
+# Import the test runner
+from tests.test_runner import TestRunner
 
 
 class DataCleaningPipeline:
-    """Main orchestrator for data cleaning pipeline"""
+    """Simple data cleaning orchestrator - one cleaner per project"""
 
-    def __init__(self):
+    def __init__(self, cleaner_file: str = "cleaner"):
         self.logger = logging.getLogger(__name__)
+        # Strip .py extension if provided
+        self.cleaner_file = cleaner_file.rstrip('.py') if cleaner_file.endswith('.py') else cleaner_file
+        self.cleaner_class = self._load_cleaner()
         self.test_runner = TestRunner()
-        self._discovered_cleaners = {}
-        self._base_requirements = self._get_base_requirements()
-        self._discover_cleaners()
 
-    def _get_base_requirements(self) -> Set[str]:
-        """Get the base requirements that are assumed to be installed"""
-        base_req_file = Path("requirements.txt")
-        if base_req_file.exists():
-            with open(base_req_file, 'r') as f:
-                # Parse package names from requirements.txt
-                base_packages = set()
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#'):
-                        # Extract package name (before any version specifiers)
-                        pkg_name = line.split('>=')[0].split('==')[0].split('<')[0].split('>')[0].strip()
-                        base_packages.add(pkg_name.lower())
-                return base_packages
-        return set()
-
-    def _check_requirements(self, cleaner_path: Path, cleaner_name: str) -> Dict[str, Any]:
-        """Check if a cleaner's requirements are installed"""
-        req_file = cleaner_path / "requirements.txt"
-        if not req_file.exists():
-            return {"success": True, "missing": [], "message": "No requirements.txt found"}
-
-        missing_packages = []
-        installable_packages = []
-
-        with open(req_file, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    # Parse requirement
-                    pkg_spec = line
-                    pkg_name = pkg_spec.split('>=')[0].split('==')[0].split('<')[0].split('>')[0].strip()
-
-                    # Skip if it's in base requirements
-                    if pkg_name.lower() in self._base_requirements:
-                        continue
-
-                    # Check if package is installed using importlib.metadata
-                    try:
-                        metadata.version(pkg_name)
-                    except metadata.PackageNotFoundError:
-                        missing_packages.append(pkg_name)
-                        installable_packages.append(pkg_spec)
-
-        if missing_packages:
-            install_cmd = f"pip install {' '.join(installable_packages)}"
-            return {
-                "success": False,
-                "missing": missing_packages,
-                "install_command": install_cmd,
-                "message": f"Missing dependencies for {cleaner_name}: {', '.join(missing_packages)}"
-            }
-
-        return {"success": True, "missing": [], "message": "All requirements satisfied"}
-
-    def _try_install_requirements(self, cleaner_path: Path, cleaner_name: str) -> bool:
-        """Try to install requirements for a cleaner"""
-        req_file = cleaner_path / "requirements.txt"
-        if not req_file.exists():
-            return True
-
+    def _load_cleaner(self):
+        """Load the cleaner class from the specified file"""
         try:
-            self.logger.info(f"Installing requirements for {cleaner_name}...")
-            result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "-r", str(req_file)],
-                capture_output=True,
-                text=True
-            )
-            if result.returncode == 0:
-                self.logger.info(f"Successfully installed requirements for {cleaner_name}")
-                return True
-            else:
-                self.logger.error(f"Failed to install requirements: {result.stderr}")
-                return False
-        except Exception as e:
-            self.logger.error(f"Error installing requirements: {e}")
-            return False
+            # Import the cleaner module
+            module = importlib.import_module(self.cleaner_file)
 
-    def _discover_cleaners(self):
-        """Automatically discover all available cleaners"""
-        # Discover built-in cleaners
-        cleaners_dir = Path("cleaners")
-        if cleaners_dir.exists():
-            for cleaner_path in cleaners_dir.iterdir():
-                if cleaner_path.is_dir() and not cleaner_path.name.startswith('_'):
-                    self._try_load_cleaner(cleaner_path.name, "cleaners")
+            # Find the Cleaner class
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if (isinstance(attr, type) and
+                    attr_name.endswith('Cleaner') and
+                    attr_name not in ['BaseCleaner', 'Cleaner']):
+                    self.logger.info(f"Loaded cleaner: {attr_name} from {self.cleaner_file}.py")
+                    return attr
 
-        # Discover external cleaners
-        external_dir = Path("external_cleaners")
-        if external_dir.exists():
-            for cleaner_path in external_dir.iterdir():
-                if cleaner_path.is_dir() and not cleaner_path.name.startswith('.'):
-                    self._try_load_cleaner(cleaner_path.name, "external_cleaners")
-
-    def _try_load_cleaner(self, cleaner_name: str, base_path: str):
-        """Try to load a cleaner from a directory"""
-        try:
-            cleaner_path = Path(base_path) / cleaner_name
-
-            # Check requirements first
-            req_check = self._check_requirements(cleaner_path, cleaner_name)
-            if not req_check["success"]:
-                self.logger.warning(
-                    f"Cleaner '{cleaner_name}' has missing dependencies: {', '.join(req_check['missing'])}\n"
-                    f"To install them, run: {req_check['install_command']}"
-                )
-                # Don't load the cleaner if dependencies are missing
-                return
-
-            if base_path == "external_cleaners":
-                # For external cleaners, we need to handle imports properly
-                # Check if __init__.py exists in the cleaner directory
-                init_file = cleaner_path / "__init__.py"
-                if not init_file.exists():
-                    # Create an empty __init__.py to make it a proper package
-                    init_file.write_text("")
-
-                # Add the parent directory to sys.path so relative imports work
-                parent_path = str(Path(base_path).absolute())
-                if parent_path not in sys.path:
-                    sys.path.insert(0, parent_path)
-
-                # Import as a package
-                module = importlib.import_module(f"{cleaner_name}.data_cleaner")
-            else:
-                # For built-in cleaners
-                module = importlib.import_module(f"{base_path}.{cleaner_name}.data_cleaner")
-
-            # Look for a class named 'Cleaner'
+            # If no custom cleaner found, look for the generic 'Cleaner' class
             if hasattr(module, 'Cleaner'):
-                cleaner_class = getattr(module, 'Cleaner')
+                self.logger.info(f"Loaded cleaner: Cleaner from {self.cleaner_file}.py")
+                return module.Cleaner
 
-                self._discovered_cleaners[cleaner_name] = cleaner_class
-                self.logger.info(f"Discovered cleaner: {cleaner_name}")
-            else:
-                raise ValueError(
-                    f"No 'Cleaner' class found in {cleaner_name}/data_cleaner.py"
-                )
+            raise ValueError(f"No Cleaner class found in {self.cleaner_file}.py")
 
         except ImportError as e:
-            # Check if it's likely a missing dependency issue
-            error_msg = str(e)
-            if "No module named" in error_msg:
-                module_name = error_msg.split("'")[1]
-                self.logger.error(
-                    f"Failed to load cleaner {cleaner_name} due to missing module '{module_name}'. "
-                    f"This might be a missing dependency. Check {cleaner_path}/requirements.txt"
-                )
-            else:
-                self.logger.error(f"Import error loading cleaner {cleaner_name}: {e}")
+            self.logger.error(f"Failed to import {self.cleaner_file}.py: {e}")
+            raise
         except Exception as e:
-            self.logger.error(f"Failed to load cleaner {cleaner_name}: {e}")
+            self.logger.error(f"Failed to load cleaner: {e}")
+            raise
 
-    def install_cleaner_requirements(self, cleaner_name: str, auto_install: bool = False) -> bool:
+    def run(self, use_disk: bool = False,
+            output_dir: Optional[Path] = None,
+            skip_tests: bool = False) -> Optional[pd.DataFrame]:
         """
-        Install requirements for a specific cleaner
+        Run the data cleaner
 
         Args:
-            cleaner_name: Name of the cleaner
-            auto_install: If True, automatically install. If False, just check and report.
-
-        Returns:
-            True if requirements are satisfied or successfully installed
-        """
-        # Find the cleaner path
-        cleaner_path = None
-        if (Path("cleaners") / cleaner_name).exists():
-            cleaner_path = Path("cleaners") / cleaner_name
-        elif (Path("external_cleaners") / cleaner_name).exists():
-            cleaner_path = Path("external_cleaners") / cleaner_name
-        else:
-            self.logger.error(f"Cleaner '{cleaner_name}' not found")
-            return False
-
-        req_check = self._check_requirements(cleaner_path, cleaner_name)
-
-        if req_check["success"]:
-            self.logger.info(f"All requirements for '{cleaner_name}' are already satisfied")
-            return True
-
-        if auto_install:
-            return self._try_install_requirements(cleaner_path, cleaner_name)
-        else:
-            self.logger.info(
-                f"To install missing dependencies for '{cleaner_name}', run:\n"
-                f"  {req_check['install_command']}"
-            )
-            return False
-
-    def list_cleaners(self, include_unavailable: bool = False) -> List[str]:
-        """
-        List all available cleaners
-
-        Args:
-            include_unavailable: If True, also list cleaners with missing dependencies
-        """
-        available = list(self._discovered_cleaners.keys())
-
-        if include_unavailable:
-            # Also check for cleaners that couldn't be loaded due to missing deps
-            all_cleaners = []
-
-            for base_path in ["cleaners", "external_cleaners"]:
-                if Path(base_path).exists():
-                    for cleaner_path in Path(base_path).iterdir():
-                        if cleaner_path.is_dir() and not cleaner_path.name.startswith('_'):
-                            all_cleaners.append(cleaner_path.name)
-
-            unavailable = [c for c in all_cleaners if c not in available]
-            return {"available": available, "unavailable": unavailable}
-
-        return available
-
-    def get_cleaner_info(self, cleaner_name: str) -> Dict[str, Any]:
-        """Get information about a specific cleaner"""
-        if cleaner_name not in self._discovered_cleaners:
-            # Check if it exists but has missing dependencies
-            cleaner_path = None
-            if (Path("cleaners") / cleaner_name).exists():
-                cleaner_path = Path("cleaners") / cleaner_name
-            elif (Path("external_cleaners") / cleaner_name).exists():
-                cleaner_path = Path("external_cleaners") / cleaner_name
-
-            if cleaner_path:
-                req_check = self._check_requirements(cleaner_path, cleaner_name)
-                raise ValueError(
-                    f"Cleaner '{cleaner_name}' found but not loaded. {req_check['message']}\n"
-                    f"Run: {req_check.get('install_command', '')}"
-                )
-            else:
-                raise ValueError(f"Cleaner '{cleaner_name}' not found")
-
-        cleaner = self._discovered_cleaners[cleaner_name]()
-        info = {
-            'name': cleaner_name,
-            'metadata': cleaner.get_metadata()
-        }
-        return info
-
-    def run_cleaner(self, cleaner_name: str,
-                    use_disk: bool = False,
-                    test_only: bool = False,
-                    output_dir: Optional[Path] = None) -> Optional[pd.DataFrame]:
-        """
-        Run a single cleaner.
-
-        Args:
-            cleaner_name: Name of the cleaner to run
             use_disk: If True, use disk-based processing if available
-            test_only: If True, only run tests without saving output
-            output_dir: Optional output directory for cleaned data
+            output_dir: Output directory (defaults to data/cleaned/)
+            skip_tests: If True, skip validation tests
 
         Returns:
             Cleaned DataFrame if successful, None if failed
         """
-        if cleaner_name not in self._discovered_cleaners:
-            available = self.list_cleaners()
-            all_info = self.list_cleaners(include_unavailable=True)
-
-            if isinstance(all_info, dict) and cleaner_name in all_info.get('unavailable', []):
-                # The cleaner exists but has missing dependencies
-                cleaner_path = None
-                if (Path("cleaners") / cleaner_name).exists():
-                    cleaner_path = Path("cleaners") / cleaner_name
-                elif (Path("external_cleaners") / cleaner_name).exists():
-                    cleaner_path = Path("external_cleaners") / cleaner_name
-
-                if cleaner_path:
-                    req_check = self._check_requirements(cleaner_path, cleaner_name)
-                    raise ValueError(
-                        f"Cleaner '{cleaner_name}' has missing dependencies: {', '.join(req_check['missing'])}\n"
-                        f"To install them, run: {req_check['install_command']}"
-                    )
-
-            raise ValueError(
-                f"Cleaner '{cleaner_name}' not found. "
-                f"Available cleaners: {', '.join(available)}"
-            )
-
         try:
             # Instantiate the cleaner
-            cleaner = self._discovered_cleaners[cleaner_name]()
+            cleaner = self.cleaner_class()
             capabilities = cleaner.get_capabilities()
 
-            self.logger.info(f"Running cleaner: {cleaner_name}")
+            self.logger.info(f"Running {self.cleaner_class.__name__}...")
+            self.logger.info(f"Source: {cleaner.get_metadata().get('source', 'Unknown')}")
 
             # Download data
-            if use_disk and capabilities['download_to_path']:
-                # Use disk-based download
-                raw_dir = Path("data/raw") / cleaner_name
+            self.logger.info("Downloading data...")
+
+            # Determine which download method to use
+            has_df_download = capabilities.get('download_to_df', False)
+            has_path_download = capabilities.get('download_to_path', False)
+
+            if not has_df_download and not has_path_download:
+                raise NotImplementedError(
+                    "Cleaner must implement download_to_df() or download_to_path()"
+                )
+
+            # Choose download method based on availability and preference
+            use_path_method = False
+            if has_path_download and has_df_download:
+                # Both available - use disk flag to decide
+                use_path_method = use_disk
+                if use_disk:
+                    self.logger.info("Both download methods available, using disk-based as requested")
+                else:
+                    self.logger.info("Both download methods available, using memory-based")
+            elif has_path_download:
+                # Only path available
+                use_path_method = True
+                self.logger.info("Using disk-based download (only method available)")
+            else:
+                # Only df available
+                use_path_method = False
+                self.logger.info("Using memory-based download (only method available)")
+
+            # Execute download
+            if use_path_method:
+                raw_dir = Path("data/raw")
                 raw_dir.mkdir(parents=True, exist_ok=True)
                 data_path = cleaner.download_to_path(raw_dir)
                 data_ref = data_path
                 self.logger.info(f"Downloaded data to: {data_path}")
-            elif capabilities['download_to_df']:
-                # Use in-memory download
+            else:
                 data_ref = cleaner.download_to_df()
                 self.logger.info(f"Downloaded data to memory")
+
+            # Clean data - match the cleaning method to download method
+            self.logger.info("Cleaning data...")
+
+            if use_path_method:
+                # We used download_to_path, so need clean_from_path
+                if capabilities.get('clean_from_path'):
+                    cleaned_df = cleaner.clean_from_path(data_ref)
+                else:
+                    raise NotImplementedError(
+                        f"Cleaner implements download_to_path() but not clean_from_path(). "
+                        f"Please implement clean_from_path() or use download_to_df() instead."
+                    )
             else:
-                raise NotImplementedError(
-                    f"Cleaner {cleaner_name} must implement download_to_df() or download_to_path()"
-                )
+                # We used download_to_df, so need clean_from_df
+                if capabilities.get('clean_from_df'):
+                    cleaned_df = cleaner.clean_from_df(data_ref)
+                else:
+                    raise NotImplementedError(
+                        f"Cleaner implements download_to_df() but not clean_from_df(). "
+                        f"Please implement clean_from_df() or use download_to_path() instead."
+                    )
 
-            # Clean data
-            if isinstance(data_ref, Path) and capabilities['clean_from_path']:
-                cleaned_df = cleaner.clean_from_path(data_ref)
-            elif isinstance(data_ref, pd.DataFrame) and capabilities['clean_from_df']:
-                cleaned_df = cleaner.clean_from_df(data_ref)
-            elif isinstance(data_ref, Path) and capabilities['clean_from_df']:
-                # Load from path and clean in memory
-                df = pd.read_csv(data_ref)
-                cleaned_df = cleaner.clean_from_df(df)
-            else:
-                raise NotImplementedError(
-                    f"Cleaner {cleaner_name} does not support the required cleaning method"
-                )
+            self.logger.info(f"Cleaned {len(cleaned_df)} records with {len(cleaned_df.columns)} columns")
 
-            self.logger.info(f"Cleaned {len(cleaned_df)} records")
+            # Run custom validation if implemented
+            if hasattr(cleaner, 'validate_output'):
+                self.logger.info("Running custom validation...")
+                if not cleaner.validate_output(cleaned_df):
+                    self.logger.error("Custom validation failed")
+                    return None
 
-            # Run custom validation
-            if not cleaner.validate_output(cleaned_df):
-                self.logger.error(f"Custom validation failed for {cleaner_name}")
-                return None
+            # Run test suite unless skipped
+            if not skip_tests:
+                self.logger.info("Running validation tests...")
+                test_results = self.test_runner.run_tests(cleaned_df)
 
-            # Run standard tests
-            test_results = self.test_runner.run_tests(cleaner_name, cleaned_df)
+                if not test_results['passed']:
+                    self.logger.error(
+                        f"\nValidation tests failed:\n"
+                        f"  Passed: {test_results['passed_tests']}/{test_results['total_tests']}\n"
+                        f"  Failed tests:"
+                    )
+                    # Show failed tests
+                    for test_name, result in test_results['test_details'].items():
+                        if not result['passed']:
+                            self.logger.error(f"    ✗ {test_name}: {result['message']}")
 
-            if test_only:
-                self.logger.info(f"Test results: {test_results}")
-                return cleaned_df if test_results['passed'] else None
-
-            if not test_results['passed']:
-                self.logger.error(
-                    f"Tests failed for {cleaner_name}: {test_results['errors']}"
-                )
-                return None
+                    self.logger.info("\nTo save data anyway, run with --skip-tests")
+                    return None
+                else:
+                    self.logger.info(
+                        f"All tests passed! ({test_results['passed_tests']}/{test_results['total_tests']})"
+                    )
 
             # Save cleaned data
-            if output_dir:
-                output_path = output_dir / f"{cleaner_name}_cleaned.csv"
-            else:
-                output_path = Path("data/cleaned") / f"{cleaner_name}_cleaned.csv"
+            if output_dir is None:
+                output_dir = Path("data/cleaned")
 
+            output_path = output_dir / "cleaned_data.csv"
             output_path.parent.mkdir(parents=True, exist_ok=True)
+
             cleaned_df.to_csv(output_path, index=False)
-            self.logger.info(f"Saved cleaned data to: {output_path}")
+            self.logger.info(f"\nSaved cleaned data to: {output_path}")
+            self.logger.info(f"Shape: {cleaned_df.shape}")
 
             return cleaned_df
 
         except Exception as e:
-            self.logger.error(f"Error running cleaner {cleaner_name}: {e}")
+            self.logger.error(f"Error running cleaner: {e}")
             self.logger.error(traceback.format_exc())
             return None
 
-    def run_multiple(self, cleaner_names: List[str],
-                     parallel: bool = True,
-                     use_disk: bool = False) -> Dict[str, pd.DataFrame]:
-        """Run multiple cleaners"""
-        results = {}
+    def test(self) -> Dict[str, Any]:
+        """Run the cleaner and report test results"""
+        try:
+            # Run the cleaner with skip_tests=True to avoid double testing
+            df = self.run(skip_tests=True)
+            if df is None:
+                return {"execution": False, "error": "Cleaner failed to run"}
 
-        if parallel:
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                futures = {
-                    executor.submit(self.run_cleaner, name, use_disk): name
-                    for name in cleaner_names
-                }
-                for future in as_completed(futures):
-                    cleaner_name = futures[future]
-                    try:
-                        result = future.result()
-                        if result is not None:
-                            results[cleaner_name] = result
-                    except Exception as e:
-                        self.logger.error(f"Error in {cleaner_name}: {e}")
-        else:
-            for cleaner_name in cleaner_names:
-                try:
-                    result = self.run_cleaner(cleaner_name, use_disk)
-                    if result is not None:
-                        results[cleaner_name] = result
-                except Exception as e:
-                    self.logger.error(f"Error in {cleaner_name}: {e}")
+            # Run full test suite
+            test_results = self.test_runner.run_tests(df)
 
-        return results
+            return test_results
 
-    def run_all(self, parallel: bool = True, use_disk: bool = False) -> Dict[str, pd.DataFrame]:
-        """Run all discovered cleaners"""
-        return self.run_multiple(self.list_cleaners(), parallel, use_disk)
+        except Exception as e:
+            self.logger.error(f"Test failed: {e}")
+            return {"execution": False, "error": str(e)}
+
+    def info(self):
+        """Display information about the cleaner"""
+        try:
+            cleaner = self.cleaner_class()
+            metadata = cleaner.get_metadata()
+            capabilities = cleaner.get_capabilities()
+
+            print(f"\nCleaner: {self.cleaner_class.__name__}")
+            print(f"File: {self.cleaner_file}.py")
+            print("\nMetadata:")
+            for key, value in metadata.items():
+                print(f"  {key}: {value}")
+
+            print("\nCapabilities:")
+            print(f"  Download to memory: {'✓' if capabilities.get('download_to_df') else '✗'}")
+            print(f"  Download to disk: {'✓' if capabilities.get('download_to_path') else '✗'}")
+            print(f"  Clean from memory: {'✓' if capabilities.get('clean_from_df') else '✗'}")
+            print(f"  Clean from disk: {'✓' if capabilities.get('clean_from_path') else '✗'}")
+
+        except Exception as e:
+            print(f"Error getting cleaner info: {e}")
 
 
 # CLI interface
 if __name__ == "__main__":
     import argparse
 
+    # Set up logging
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
-    parser = argparse.ArgumentParser(description='Run data cleaning pipeline')
-    parser.add_argument('--cleaner', type=str, help='Run specific cleaner')
-    parser.add_argument('--list', action='store_true', help='List available cleaners')
-    parser.add_argument('--list-all', action='store_true', help='List all cleaners including unavailable')
-    parser.add_argument('--info', type=str, help='Get info about a cleaner')
-    parser.add_argument('--test', action='store_true', help='Test mode only')
-    parser.add_argument('--disk', action='store_true', help='Use disk-based processing')
-    parser.add_argument('--parallel', action='store_true', default=True,
-                        help='Run cleaners in parallel')
-    parser.add_argument('--output-dir', type=str, help='Output directory for cleaned data')
-    parser.add_argument('--install-deps', type=str, help='Install dependencies for a cleaner')
+    parser = argparse.ArgumentParser(
+        description='Run data cleaning pipeline',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python data_cleaning.py                    # Run the cleaner
+  python data_cleaning.py --test             # Test the cleaner
+  python data_cleaning.py --info             # Show cleaner info
+  python data_cleaning.py --skip-tests       # Run without validation
+  python data_cleaning.py --cleaner-file example_cleaner      # Use example_cleaner.py
+  python data_cleaning.py --cleaner-file example_cleaner.py   # Also works!
+        """
+    )
+
+    parser.add_argument('--test', action='store_true',
+                       help='Test mode - run cleaner and show detailed test results')
+    parser.add_argument('--disk', action='store_true',
+                       help='Use disk-based processing for large files')
+    parser.add_argument('--skip-tests', action='store_true',
+                       help='Skip validation tests and save output anyway')
+    parser.add_argument('--list-tests', action='store_true',
+                       help='List all available validation tests')
+    parser.add_argument('--info', action='store_true',
+                       help='Show information about the cleaner')
+    parser.add_argument('--output-dir', type=str,
+                       help='Output directory for cleaned data (default: data/cleaned/)')
+    parser.add_argument('--cleaner-file', type=str, default='cleaner',
+                       help='Python file containing the Cleaner class (with or without .py extension, default: cleaner.py)')
 
     args = parser.parse_args()
 
-    pipeline = DataCleaningPipeline()
+    # Handle list-tests separately (doesn't need a cleaner)
+    if args.list_tests:
+        test_runner = TestRunner()
+        print("Available validation tests:")
+        for test in test_runner.list_tests():
+            module, name = test.rsplit('.', 1)
+            print(f"  - {name} (from {module})")
+        sys.exit(0)
 
-    if args.list:
-        print("Available cleaners:")
-        for cleaner in pipeline.list_cleaners():
-            print(f"  - {cleaner}")
+    # Initialize pipeline with specified cleaner file
+    try:
+        pipeline = DataCleaningPipeline(cleaner_file=args.cleaner_file)
+    except Exception as e:
+        logging.error(f"Failed to initialize pipeline: {e}")
+        sys.exit(1)
 
-    elif args.list_all:
-        all_cleaners = pipeline.list_cleaners(include_unavailable=True)
-        if isinstance(all_cleaners, dict):
-            print("Available cleaners:")
-            for cleaner in all_cleaners['available']:
-                print(f"  ✓ {cleaner}")
-            if all_cleaners['unavailable']:
-                print("\nUnavailable cleaners (missing dependencies):")
-                for cleaner in all_cleaners['unavailable']:
-                    print(f"  ✗ {cleaner}")
+    # Handle different modes
+    if args.info:
+        pipeline.info()
 
-    elif args.install_deps:
-        success = pipeline.install_cleaner_requirements(args.install_deps, auto_install=True)
-        if success:
-            print(f"Successfully installed dependencies for '{args.install_deps}'")
-        else:
-            print(f"Failed to install dependencies for '{args.install_deps}'")
-            sys.exit(1)
+    elif args.test:
+        print(f"\nTesting {args.cleaner_file}.py...")
+        results = pipeline.test()
 
-    elif args.info:
-        try:
-            info = pipeline.get_cleaner_info(args.info)
-            print(f"\nCleaner: {info['name']}")
-            print(f"Metadata: {info['metadata']}")
-        except ValueError as e:
-            print(f"Error: {e}")
-            sys.exit(1)
+        if results.get('passed') is not None:
+            print(f"\nTest Results:")
+            print(f"  Total tests: {results['total_tests']}")
+            print(f"  Passed: {results['passed_tests']}")
+            print(f"  Failed: {results['failed_tests']}")
 
-    elif args.cleaner:
-        try:
-            output_dir = Path(args.output_dir) if args.output_dir else None
-            result = pipeline.run_cleaner(
-                args.cleaner,
-                use_disk=args.disk,
-                test_only=args.test,
-                output_dir=output_dir
-            )
-            if result is not None:
-                print(f"Successfully cleaned {len(result)} records")
-            else:
-                print("Cleaning failed")
+            if results['test_details']:
+                print("\nDetailed Results:")
+                for test_name, result in results['test_details'].items():
+                    status = '✓' if result['passed'] else '✗'
+                    print(f"  {status} {test_name}: {result['message']}")
+
+            if not results['passed']:
+                print("\nTests FAILED - data may not meet quality standards")
                 sys.exit(1)
-        except ValueError as e:
-            print(f"Error: {e}")
+            else:
+                print("\nAll tests PASSED! ✨")
+        else:
+            print(f"Failed to run tests: {results.get('error', 'Unknown error')}")
             sys.exit(1)
 
     else:
-        results = pipeline.run_all(parallel=args.parallel, use_disk=args.disk)
-        print(f"Successfully cleaned {len(results)} datasets")
+        # Run the cleaner
+        output_dir = Path(args.output_dir) if args.output_dir else None
+        result = pipeline.run(
+            use_disk=args.disk,
+            output_dir=output_dir,
+            skip_tests=args.skip_tests
+        )
+
+        if result is not None:
+            print(f"\n✅ Successfully cleaned {len(result)} records!")
+        else:
+            print("\n❌ Cleaning failed")
+            sys.exit(1)

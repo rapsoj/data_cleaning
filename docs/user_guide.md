@@ -1,281 +1,337 @@
 # User Guide: Data Cleaning Pipeline
 
-## 📖 Introduction
+## Introduction
 
-The Data Cleaning Pipeline is an automated framework for standardizing data preparation in machine learning projects. It provides a consistent interface for data cleaning tasks, automatic validation, and seamless integration with downstream ML pipelines, eliminating the bottleneck of manual data preparation and ensuring reproducible, high-quality datasets.
+The Data Cleaning Pipeline is a lightweight framework for standardizing data preparation in machine learning projects. It provides a consistent interface for data cleaning tasks with automatic validation, designed to be simple enough for students while powerful enough for production use.
 
-## 🔧 Usage
+## Getting Started
 
-### Running from Command Line
-
-The pipeline can be executed directly from the command line with various options:
+### Installation
 
 ```bash
-python data_cleaning.py [OPTIONS]
+# Clone your project repository
+git clone https://github.com/your-org/your-project.git
+cd your-project
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-### Running from IDE (PyCharm, VS Code, etc.)
+### Basic Usage
 
-1. Open `data_cleaning.py` in your IDE
-2. Configure run parameters in your IDE's run configuration
-3. Run the script directly
+The pipeline runs a single data cleaner defined in `cleaner.py`:
 
-### Command Parameters
+```bash
+# Run the cleaner
+python data_cleaning.py
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `--cleaner NAME` | Run a specific cleaner | `--cleaner weather_data` |
-| `--list` | List all available cleaners | `--list` |
-| `--list-all` | List all cleaners including those with missing dependencies | `--list-all` |
-| `--info NAME` | Get detailed information about a specific cleaner | `--info weather_data` |
-| `--test` | Run in test mode (validates data without saving) | `--cleaner weather_data --test` |
-| `--disk` | Use disk-based processing for large datasets | `--cleaner large_dataset --disk` |
-| `--parallel` | Run multiple cleaners in parallel (default: True) | `--parallel` |
-| `--output-dir PATH` | Specify custom output directory | `--output-dir /custom/path` |
-| `--install-deps NAME` | Install dependencies for a specific cleaner | `--install-deps weather_data` |
+# Run with validation tests
+python data_cleaning.py --test
+
+# Show cleaner information
+python data_cleaning.py --info
+```
+
+## Command Line Interface
+
+### Available Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| (no args) | Run the cleaner | `python data_cleaning.py` |
+| `--test` | Run cleaner and show detailed test results | `python data_cleaning.py --test` |
+| `--info` | Display cleaner metadata and capabilities | `python data_cleaning.py --info` |
+| `--skip-tests` | Run cleaner without validation tests | `python data_cleaning.py --skip-tests` |
+| `--disk` | Use disk-based processing for large files | `python data_cleaning.py --disk` |
+| `--list-tests` | Show all available validation tests | `python data_cleaning.py --list-tests` |
+| `--output-dir PATH` | Specify custom output directory | `python data_cleaning.py --output-dir ./output` |
+| `--cleaner-file NAME` | Use a different cleaner file | `python data_cleaning.py --cleaner-file example_cleaner` |
 
 ### Examples
 
 ```bash
-# List available cleaners
-python data_cleaning.py --list
-
-# Run a specific cleaner
-python data_cleaning.py --cleaner weather_data
-
-# Test a cleaner without saving output
-python data_cleaning.py --cleaner weather_data --test
-
-# Run cleaner with disk-based processing
-python data_cleaning.py --cleaner large_dataset --disk
-
-# Install missing dependencies
-python data_cleaning.py --install-deps weather_data
-
-# Run all cleaners
+# Run the default cleaner
 python data_cleaning.py
+
+# Test your cleaner without saving output
+python data_cleaning.py --test
+
+# Use the example cleaner instead
+python data_cleaning.py --cleaner-file example_cleaner
+
+# Process large files using disk storage
+python data_cleaning.py --disk
+
+# Save output to custom location
+python data_cleaning.py --output-dir /path/to/output
+
+# Run without validation (useful during development)
+python data_cleaning.py --skip-tests
 ```
 
-### Data Flow and File Structure
+## Data Flow
+
+### Directory Structure
 
 ```
-data/
-├── raw/                    # Downloaded raw data
-│   └── weather_data/       # Raw data for each cleaner
-│       └── data.csv
-├── cleaned/                # Cleaned output data
-│   └── weather_data_cleaned.csv   # Standardized output
-└── temp/                   # Temporary processing files
+project/
+├── cleaner.py              # Your data cleaner (edit this!)
+├── example_cleaner.py      # Working example for reference
+├── base_cleaner.py         # Base class (don't edit)
+├── data_cleaning.py        # Main runner (don't edit)
+├── requirements.txt        # Python dependencies
+│
+├── tests/                  # Validation tests
+│   ├── test_runner.py      # Test orchestrator
+│   ├── standard_tests.py   # Built-in tests
+│   └── custom_tests.py     # Project-specific tests
+│
+└── data/
+    ├── raw/                # Raw downloaded data (optional)
+    └── cleaned/            # Output directory
+        └── cleaned_data.csv # Your cleaned dataset
 ```
 
-**Output Location**: All cleaned data is automatically saved to `data/cleaned/{cleaner_name}_cleaned.csv`
+### Output
 
-## 🧪 Testing
+- **Default location**: `data/cleaned/cleaned_data.csv`
+- **Custom location**: Use `--output-dir` to specify
+- **Format**: Always CSV with UTF-8 encoding
+
+## Testing Framework
 
 ### How Testing Works
 
-The testing framework automatically discovers and runs tests to ensure data quality:
+The pipeline automatically validates your cleaned data using a suite of tests:
 
-1. **Standard Tests**: Run automatically on all cleaners
-2. **Custom Tests**: Defined in test specifications for specific cleaners
+1. **Standard tests** run on all data (e.g., checking for empty dataframes)
+2. **Custom tests** specific to your project requirements
 
-### Test Discovery
+### Standard Tests
 
-Tests are dynamically discovered from all Python files in `tests/test_definitions/`. Any function starting with `test_` is automatically registered:
+These tests run automatically on every dataset:
+
+| Test | What it checks | Fails when |
+|------|----------------|------------|
+| `test_not_empty` | Dataset has rows | No data returned |
+| `test_has_columns` | Dataset has columns | No columns present |
+| `test_no_all_null_columns` | No completely empty columns | Any column is 100% null |
+| `test_no_duplicate_rows` | Duplicate row count | Exact duplicates exist |
+| `test_column_names_valid` | Clean column names | Spaces or special chars in names |
+| `test_numeric_columns_valid` | Numeric data quality | Infinity values or all identical |
+| `test_date_columns_valid` | Date formatting | Dates before 1900 or after 2100 |
+
+### Adding Custom Tests
+
+Add project-specific validations to `tests/custom_tests.py`:
 
 ```python
-# tests/test_definitions/my_custom_tests.py
-def test_my_validation(df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
-    """Custom validation test"""
-    # Your test logic
+def test_required_columns(df):
+    """Check that essential columns exist"""
+    required = ['date', 'value', 'location']
+    missing = [col for col in required if col not in df.columns]
+    
     return {
-        'passed': True/False,
-        'message': 'Description of result',
-        'details': {...}
+        'passed': len(missing) == 0,
+        'message': f'Missing columns: {missing}' if missing else 'All required columns present',
+        'details': {'missing': missing}
+    }
+
+def test_positive_values(df):
+    """Ensure values are positive where expected"""
+    if 'price' not in df.columns:
+        return {'passed': True, 'message': 'No price column to check', 'details': {}}
+    
+    negative_count = (df['price'] < 0).sum()
+    return {
+        'passed': negative_count == 0,
+        'message': f'Found {negative_count} negative prices',
+        'details': {'count': int(negative_count)}
     }
 ```
 
-### Adding New Tests
+### Test Results
 
-1. **Create a test function** in any file under `tests/test_definitions/`:
-   ```python
-   def test_date_format(df: pd.DataFrame, params: Dict[str, Any]) -> Dict[str, Any]:
-       column = params.get('column')
-       try:
-           pd.to_datetime(df[column])
-           return {'passed': True, 'message': 'Date format valid'}
-       except:
-           return {'passed': False, 'message': f'Invalid date format in {column}'}
-   ```
-
-2. **Use in test specifications**:
-   ```yaml
-   # tests/test_specs/weather_data.yaml
-   tests:
-     date_validation:
-       type: date_format
-       params:
-         column: date
-       severity: error
-   ```
-
-### Default Tests
-
-All cleaners automatically undergo these standard tests:
-
-| Test | Purpose | Severity |
-|------|---------|----------|
-| `not_empty` | Ensures DataFrame has data | Error |
-| `no_null_columns` | Detects completely empty columns | Error |
-| `duplicate_rows` | Warns about excessive duplicates (>10%) | Warning |
-| `data_types` | Detects suspicious type mismatches | Warning |
-| `memory_usage` | Alerts if data uses >2GB memory | Warning |
-
-### Test Specifications
-
-Custom test specifications are YAML files in `tests/test_specs/` that define additional validations:
-
-```yaml
-# tests/test_specs/weather_data.yaml
-tests:
-  # Ensure critical fields have no nulls
-  required_fields:
-    type: no_nulls
-    params:
-      columns: [date, temperature, location]
-    severity: error
-  
-  # Validate temperature range
-  temp_range:
-    type: value_range
-    params:
-      column: temperature
-      min: -50
-      max: 60
-    severity: warning
-  
-  # Custom business logic
-  data_freshness:
-    type: expression
-    params:
-      expression: |
-        (pd.Timestamp.now() - df['date'].max()).days < 7
-      failure_message: "Data is more than 7 days old"
-    severity: warning
-```
-
-**Available Test Types**:
-- `no_nulls`: Check for null values in specified columns
-- `unique_keys`: Ensure column combinations are unique
-- `value_range`: Validate numeric ranges
-- `allowed_values`: Check categorical values
-- `regex_match`: Validate string patterns
-- `expression`: Custom Python expressions
-
-## 👥 Student Usage
-
-### General Workflow
-
-Students interact with the pipeline by creating data cleaners that follow our standardized interface. For detailed instructions, see `STUDENT_GUIDE.md`.
-
-### Common Student Questions
-
-**Q: Where do I put my code?**
-A: Either in `cleaners/your_cleaner_name/` in this repo, or in your own GitHub repository.
-
-**Q: What if I need special Python packages?**
-A: Add a `requirements.txt` file in your cleaner directory. The pipeline will detect and prompt for installation.
-
-**Q: How do I test my cleaner?**
-A: Run `python data_cleaning.py --cleaner your_cleaner_name --test`
-
-**Q: My cleaner fails with "Missing dependencies" - what do I do?**
-A: Run `python data_cleaning.py --install-deps your_cleaner_name` or manually install the packages listed in the error message.
-
-**Q: Can I process large files that don't fit in memory?**
-A: Yes! Implement `download_to_path()` and `clean_from_path()` methods instead of the in-memory versions.
-
-**Q: Where does my cleaned data go?**
-A: Automatically saved to `data/cleaned/your_cleaner_name_cleaned.csv`
-
-**Q: What if my data source requires authentication?**
-A: Store credentials in environment variables or config files (never commit secrets!). Access them in your cleaner's `__init__` method.
-
-### Tips for Students
-
-1. Start with the template in `cleaners/template/`
-2. Test frequently during development
-3. Use meaningful log messages with `self.logger.info()`
-4. Handle errors gracefully with try-except blocks
-5. Document your data sources and cleaning decisions
-
-## 🏗️ Repository Structure
+When you run `python data_cleaning.py --test`, you'll see:
 
 ```
-data-cleaning-pipeline/
-├── data_cleaning.py         # Main orchestrator
-├── requirements.txt         # Base dependencies
-├── STUDENT_GUIDE.md        # Detailed guide for contributors
-├── USER_GUIDE.md           # This file
-│
-├── core/                    # Core framework
-│   ├── base_cleaner.py     # Abstract base class defining the interface
-│   ├── validators.py       # Common validation functions
-│   └── utils.py           # Shared utilities
-│
-├── cleaners/               # Built-in cleaners
-│   ├── template/          # Starter template for students
-│   └── example_cleaner/   # Example implementation
-│
-├── external_cleaners/      # External cleaner repositories
-│   └── .gitignore
-│
-├── tests/                  # Testing framework
-│   ├── test_framework.py   # Main test orchestrator
-│   ├── test_registry.py    # Dynamic test discovery
-│   ├── test_definitions/   # Test function implementations
-│   │   ├── builtin_tests.py
-│   │   └── statistical_tests.py
-│   └── test_specs/        # YAML test configurations
-│
-└── data/                   # Data storage
-    ├── raw/               # Downloaded raw data
-    ├── cleaned/           # Processed output
-    └── temp/              # Temporary files
+Test Results:
+  Total tests: 15
+  Passed: 14
+  Failed: 1
+
+Detailed Results:
+  ✓ standard_tests.test_not_empty: DataFrame has 1000 rows
+  ✓ standard_tests.test_has_columns: DataFrame has 10 columns
+  ✗ custom_tests.test_required_columns: Missing columns: ['location']
+  ...
 ```
 
-### Design Decisions
+## Writing a Data Cleaner
 
-**1. Plugin-Based Architecture**
-- **Why**: Allows independent development without modifying core code
-- **Benefit**: Students can work in isolation; easy to add/remove cleaners
+### Basic Structure
 
-**2. Dual Implementation Options (Memory/Disk)**
-- **Why**: Different datasets have different size constraints
-- **Benefit**: Flexibility for both small and large dataset processing
+Your `cleaner.py` must contain a class that inherits from `BaseCleaner`:
 
-**3. Automatic Test Discovery**
-- **Why**: Easy to extend testing without modifying framework
-- **Benefit**: Anyone can add tests by simply creating functions
+```python
+from base_cleaner import BaseCleaner
+import pandas as pd
 
-**4. Standardized Output Location**
-- **Why**: Downstream processes need predictable data locations
-- **Benefit**: Enables pipeline automation and data versioning
+class Cleaner(BaseCleaner):
+    def get_metadata(self):
+        return {
+            'source': 'Your data source',
+            'description': 'What this data contains',
+            'update_frequency': 'daily/weekly/monthly/static'
+        }
+    
+    def download_to_df(self):
+        # Download and return raw data
+        return pd.read_csv('https://example.com/data.csv')
+    
+    def clean_from_df(self, df):
+        # Clean and return the data
+        cleaned = df.copy()
+        # ... cleaning steps ...
+        return cleaned
+```
 
-**5. Separate Test Definitions and Specifications**
-- **Why**: Reusable test logic with configurable parameters
-- **Benefit**: Same test function can be used with different thresholds
+### Processing Large Files
 
-**6. External Cleaner Support**
-- **Why**: Students may prefer their own repositories
-- **Benefit**: Supports different workflows and version control preferences
+For datasets that don't fit in memory, implement the disk-based methods:
 
-**7. Dependency Isolation**
-- **Why**: Different cleaners need different packages
-- **Benefit**: Avoids dependency conflicts; only install what's needed
+```python
+def download_to_path(self, output_dir):
+    """Download large file to disk"""
+    import requests
+    
+    output_path = output_dir / 'large_file.csv'
+    with requests.get(url, stream=True) as r:
+        with open(output_path, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+    
+    return output_path
 
-This architecture prioritizes:
-- **Modularity**: Each component has a single responsibility
-- **Extensibility**: Easy to add new cleaners, tests, or features
-- **Usability**: Clear interfaces and helpful error messages
-- **Reliability**: Comprehensive testing and validation
+def clean_from_path(self, data_path):
+    """Process file in chunks"""
+    chunks = []
+    for chunk in pd.read_csv(data_path, chunksize=10000):
+        # Clean each chunk
+        cleaned_chunk = self._process_chunk(chunk)
+        chunks.append(cleaned_chunk)
+    
+    return pd.concat(chunks, ignore_index=True)
+```
+
+## Common Patterns
+
+### API Authentication
+
+```python
+import os
+
+class Cleaner(BaseCleaner):
+    def __init__(self):
+        super().__init__()
+        self.api_key = os.environ.get('API_KEY')
+        if not self.api_key:
+            raise ValueError("API_KEY environment variable not set")
+```
+
+### Error Handling
+
+```python
+def download_to_df(self):
+    try:
+        response = requests.get(self.url)
+        response.raise_for_status()
+        return pd.DataFrame(response.json())
+    except requests.RequestException as e:
+        self.logger.error(f"Download failed: {e}")
+        raise
+```
+
+### Progress Logging
+
+```python
+def clean_from_df(self, df):
+    self.logger.info(f"Starting with {len(df)} rows")
+    
+    # Cleaning steps...
+    df = df.dropna()
+    self.logger.info(f"After removing nulls: {len(df)} rows")
+    
+    return df
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**"No Cleaner class found"**
+- Make sure your class is named `Cleaner` or ends with `Cleaner`
+- Check for syntax errors in your cleaner file
+
+**"Test failed: Missing required columns"**
+- Verify your cleaned data includes all columns specified in project requirements
+- Check column naming (case sensitivity, underscores vs spaces)
+
+**Memory errors**
+- Implement `download_to_path()` and `clean_from_path()` for disk-based processing
+- Use `--disk` flag when running
+
+**"Missing dependencies"**
+- Add required packages to `requirements.txt`
+- Run `pip install -r requirements.txt`
+
+### Getting Help
+
+1. **Check the example**: `python data_cleaning.py --cleaner-file example_cleaner`
+2. **Review test output**: Failed tests show specific issues
+3. **Enable debug logging**: Add `-v` for verbose output (if implemented)
+4. **Contact support**: Reach out to your project lead with error messages
+
+## Best Practices
+
+### Data Quality
+
+- Always work on a copy: `df.copy()`
+- Log important operations and row counts
+- Validate assumptions about the data
+- Handle edge cases gracefully
+
+### Code Organization
+
+- Keep cleaning steps logical and sequential
+- Use descriptive variable names
+- Comment complex transformations
+- Separate concerns (download vs clean)
+
+### Performance
+
+- For large files, use chunked processing
+- Minimize memory usage by dropping unnecessary columns early
+- Use efficient pandas operations (vectorized over loops)
+
+### Security
+
+- Never commit credentials or API keys
+- Use environment variables for sensitive data
+- Validate external data sources
+- Be cautious with dynamic code execution
+
+## Architecture Overview
+
+The pipeline follows a simple, modular design:
+
+1. **Single Cleaner**: One cleaner per project keeps things focused
+2. **Clear Interface**: Three required methods make implementation straightforward
+3. **Automatic Testing**: Validation runs without extra configuration
+4. **Flexible Processing**: Support for both in-memory and disk-based workflows
+
+This design prioritizes:
+- **Simplicity**: Minimal learning curve for new users
+- **Flexibility**: Handles diverse data sources and sizes
+- **Reliability**: Automatic validation catches common issues
+- **Maintainability**: Clear structure makes debugging easier

@@ -1,338 +1,292 @@
----
+# Beginner's Guide: How to Add a Data Cleaner
 
-# 🧼 Beginner’s Guide: How to Add a Data Cleaner
+Welcome! This guide will help you write a **data cleaner** that fits into our machine learning project. Don't worry if you're new — we'll walk through it step by step. 
 
-Welcome! 👋
-This guide will help you write a **data cleaner** that fits into our machine learning project. Don’t worry if you’re new — we’ll walk through it step by step. For this process, the `Data Sources` tab of the `project-tracking` file for your project will be very useful. Please consult this document while cleaning your data to understand necessary specifications for the cleanded data and to track cleaning progress.
-
----
-
-## 🤔 What’s a Data Cleaner?
-
-A **data cleaner** is just some Python code that:
-
-1. **Downloads** some raw data
-2. **Cleans it up** (like fixing missing values, typos, incorrect data types, and selecting columns of interest)
-3. **Returns fully cleaned data** (fully cleaned data of the format specified in the `project-tracking` file)
-
-Our system takes care of saving the results and running your code — you just need to follow a few rules.
+**Important**: Throughout this process, refer to the `Data Sources` tab of the `project-tracking` file for your project. It contains specifications for your cleaned data and helps track cleaning progress.
 
 ---
 
-## 🧪 How It Works
+## What's a Data Cleaner?
 
-* You write a Python file called `data_cleaner.py` (replace `data_cleaner` with the `Cleaner File` name specified in the `project-tracking` file)
-* Inside it, you create a class called `Cleaner`
-* You fill in a few functions with your download + cleaning steps
-* We run your code with a simple command — no extra setup needed!
+A **data cleaner** is Python code that:
 
----
+1. **Downloads** raw data from a source
+2. **Cleans it up** (fixes missing values, standardizes formats, selects relevant columns)
+3. **Returns clean data** ready for machine learning
 
-## 🏁 Before You Start
-
-Before you write any code, take a bit of time to **understand your dataset**. This step is crucial — better models come from better data, and better data starts with you!
-
-Here’s what to do:
-
-1. **Check which dataset you're working on**  
-   Your team lead will assign you a dataset. You can also look in the `project-tracking` file to see what project and data you're responsible for.
-
-2. **Explore the dataset in a notebook**  
-   Open a Jupyter notebook and load the data (you can use `pandas.read_csv()` or whatever format it's in). Then:
-
-   - Look at a few rows with `.head()`  
-   - Check the column names and data types with `.info()`  
-   - Use `.describe()` to get a feel for the numbers  
-   - Plot the key variables using `matplotlib` or `seaborn`  
-   - Check for **missing data** with `.isna().sum()`  
-   - Look for **weird values** or **outliers** that don’t make sense
-
-   This step is *extremely* important! Don’t treat the data like a black box — the more you understand it, the better your cleaner will be.
-
-   You will become your project's resident expert on this dataset, so make sure you understand what all the columns mean and how they relate to each other and the target variable.
-
-   You’ll also start to spot what needs fixing:  
-   Maybe there are typos, or missing values, or strange formats (like `"N/A"` instead of real nulls). Write these things down — they’ll guide your cleaning code.
-
-4. **Test cleaning functions**
-   You can use this notebook (or your preferred IDE) to test functions you will eventually need to write for the cleaner. Figure out how to download (or load) the data, perform thre necessary cleaning steps, and return the cleaned data in the format specified in the project-tracking file.
-   
----
-
-Here's your updated **README** section with **clear Git instructions** for both the **terminal** and **GitHub Desktop** workflows. It's written in markdown format, easy to copy:
+Our system handles saving results and running tests — you just need to write the cleaning logic.
 
 ---
 
-## 🚀 How to Start
+## Before You Start
 
-Follow these steps to add your cleaner to the project.
+### 1. Understand Your Dataset
 
-### 🧰 Step 1: Clone the GitHub Repo
+This is the most important step! Better models come from better data, and better data starts with understanding it.
 
-You can do this using **Terminal** (for more control) or **GitHub Desktop** (easier UI).
+**Check your assignment**: Look in the `project-tracking` file to see which dataset you're responsible for.
 
----
-
-#### ➡️ Option A: Using GitHub Desktop (Beginner-Friendly)
-
-1. Install GitHub Desktop: [https://desktop.github.com](https://desktop.github.com)
-
-2. Open GitHub Desktop and **clone the repository**:
-
-   * Click `File` → `Clone Repository`
-   * Find the repo under the `URL` or `GitHub.com` tab
-   * Choose a local folder (e.g., `Documents/cleaning-pipeline`)
-
-3. Once it’s cloned, click `Open in VS Code` or navigate to the folder manually.
-
----
-
-#### ➡️ Option B: Using the Terminal (More Advanced)
-
-1. Open your terminal or command prompt
-2. Run the following to clone the repo:
-
-   ```bash
-   git clone [https://github.com/your-org/data-cleaning-pipeline.git](https://github.com/your-org/data-cleaning-pipeline.git)
-   cd data-cleaning-pipeline
-   ```
-
----
-
-### 🏗 Step 2: Add Your Cleaner
-
-1. Inside the project folder, go to the `cleaners/` directory
-
-2. Inside that folder, create the cleaning file. It should be saved as:
-
-   ```bash
-   cleaners/data_cleaner/data_cleaner.py
-   ```
-
-   Replacing `data_cleaner` with the `Cleaner File` name from the `project-tracking` document.
-
-3. Paste the following example inside your new file and update it with your own data logic (see "What You Have to Write" section for details):
-
-   ``` python
-   from core.base_cleaner import DataCleaner
-   import pandas as pd
-   from typing import Dict, Any
-
-   class Cleaner(DataCleaner):
-   """This cleaner downloads and cleans my dataset."""
-
-   def download_to_df(self) -> pd.DataFrame:  
-       return pd.read_csv("https://example.com/mydata.csv")  
-
-   def clean_from_df(self, df: pd.DataFrame) -> pd.DataFrame:  
-       df = df.dropna()  
-       return df  
-
-   def get_metadata(self) -> Dict[str, Any]:  
-       return {  
-           'source_name': 'My Source',  
-           'variables': {
-           'col1': 'Description',
-           'col2': 'Description
-           },  
-           'temporal_resolution': 'Daily',  
-           'spatial_resolution': 'City'  
-       }
-   ```
-
----
-
-Here’s an improved version of **Step 3** with clearer folder navigation instructions:
-
----
-
-### 🧪 Step 3: Test Your Cleaner
-
-1. **Open a terminal window**.
-
-2. **Navigate to the root folder** of the project — the one that contains `data_cleaning.py`.
-   If you used GitHub Desktop, right-click the folder and choose “Open in Terminal” or “Open in Command Prompt”.
-   If you're using the terminal, use the `cd` (change directory) command to go there. For example:
-
-   ```bash
-   cd ~/Documents/data-cleaning-pipeline
-   ```
-
-   Adjust the path depending on where you cloned the repo.
-
-3. Once you're in the root folder, run the cleaner test command:
-
-   ```bash
-   python data-cleaning/data_cleaning.py --cleaner my_cleaner --test
-   ```
-
-   Replacing `data_cleaner` with the `Cleaner File` name from the `project-tracking` document.
-
-If everything is working, you'll see logs confirming that your data was **downloaded, cleaned**, and saved.
-
----
-
-### ✅ Step 4: Commit and Push Your Changes
-
-#### ➡️ Option A: Using GitHub Desktop
-
-1. GitHub Desktop will automatically show your changes
-2. Write a summary in the `Commit message` box (e.g., “Add my_cleaner for XYZ data”)
-3. Click `Commit to main` (or your current branch)
-4. Click `Push origin` in the top bar to upload your changes
-
-#### ➡️ Option B: Using Terminal
-
-1. Stage your changes:
-   
-   ```bash
-   git add cleaners/my_cleaner/
-   ```
-
-2. Commit with a message:
-
-   ```bash
-   git commit -m "Add my\_cleaner for XYZ data"
-   ```
-
-3. Push to GitHub:
-   
-   ```bash
-   git push origin main
-   ```
-   *(or replace `main` with your current branch if you're not on main)*
-
----
-
-You're done! 🎉
-Once your cleaner is added and pushed, it will be automatically picked up by the pipeline and tested.
-
-Let us know if you need help — we're here to support you!
-
----
-
-## 🧱 What You Have to Write
-
-Your `Cleaner` class needs to have 3 functions:
-
----
-
-### 1. `download_to_df()`
-
-Machine learning pipelines often require dynamic data to be periodically downloaded from the source. If your dataset is dynamic (check your project's `project-tracking` file under `Update Frequency`), then you need to write code to download the data from the source. This might require just using a link to directly download the CSV, working with an API, or even webscraping.  
-
-The `download_to_df()` function will be used to download your raw data from the source. It must return a **pandas DataFrame**.
-
-If your dataset is static (check your project's `project-tracking` file under `Update Frequency`), then you simply need to load the data from its repo path.
-
-Example:
+**Explore in a notebook**:
 
 ```python
-def download_to_df(self):
-    return pd.read_csv("https://example.com/data.csv")
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load the data
+df = pd.read_csv('your_data.csv')  # or however you access it
+
+# Basic exploration
+df.head()                    # First few rows
+df.info()                    # Column names and types
+df.describe()                # Statistical summary
+df.isnull().sum()           # Missing values per column
+
+# Visualize key variables
+df['your_column'].hist()     # Distribution
+df.plot(x='date', y='value') # Trends over time
 ```
 
+**Document what you find**:
+- Missing values that need handling
+- Incorrect data types (dates stored as strings, etc.)
+- Outliers or impossible values
+- Inconsistent formats (e.g., "N/A" vs actual nulls)
+
+You'll become your project's expert on this dataset, so understand what each column means and how they relate to your target variable.
+
+### 2. Test Your Cleaning Logic
+
+Before writing the cleaner, test your cleaning steps in a notebook:
+- Figure out how to download/access the data
+- Test each cleaning step individually
+- Verify the output matches the format specified in `project-tracking`
+
 ---
 
-### 2. `clean_from_df(df)`
+## Getting Started
 
-This function takes in that raw DataFrame and cleans it. Think carefully about what cleaning needs to be done and which variables need to be selected. Ensure that the specified `Join Key` columns from the `project-tracking` file are present. This ensures your data can be linked with the other data in the pipeline.
+### Step 1: Clone the Repository
 
-Example:
+**Option A: Using GitHub Desktop** (Recommended for beginners)
+1. Install [GitHub Desktop](https://desktop.github.com)
+2. Click `File` → `Clone Repository`
+3. Find your project repo
+4. Choose a local folder (e.g., `Documents/your-project`)
+5. Click `Clone`
 
-```python
-def clean_from_df(self, df):
-    df = df.dropna()  # Remove empty rows
-    df.columns = [col.lower() for col in df.columns]  # Make column names lowercase
-    return df
+**Option B: Using Terminal**
+```bash
+git clone https://github.com/your-org/your-project.git
+cd your-project
 ```
 
----
+### Step 2: Edit the Cleaner File
 
-### 3. `get_metadata()`
+1. Open `cleaner.py` in your favorite editor (VS Code recommended)
+2. You'll see a template with empty functions to fill in
+3. Replace the TODO comments with your actual code
 
-This just returns some info about your data.
+### Step 3: Fill in the Required Functions
 
-Example:
+#### `get_metadata()`
+Provide information about your data source:
 
 ```python
-def get_metadata(self):
+def get_metadata(self) -> Dict[str, Any]:
     return {
-        'source_name': 'World Bank',
-        'variables': {
-        'population': 'Number of people in the country',
-        'gdp': 'Gross Domestic Product, in 2005 dollars',
-        'year': 'Year',
-        'country': 'Country'
-        },
-        'temporal_resolution': 'yearly',
-        'spatial_resolution': 'country'
+        'source': 'World Bank Open Data',
+        'description': 'Economic indicators by country and year',
+        'update_frequency': 'annual',  # or 'daily', 'monthly', 'static'
+        'url': 'https://data.worldbank.org'
     }
 ```
 
+#### `download_to_df()`
+Download your raw data:
+
+```python
+def download_to_df(self) -> pd.DataFrame:
+    # For a CSV from URL:
+    return pd.read_csv("https://example.com/data.csv")
+    
+    # For an API:
+    response = requests.get("https://api.example.com/data")
+    return pd.DataFrame(response.json())
+    
+    # For a local file (if static):
+    return pd.read_csv("data/raw/my_data.csv")
+```
+
+#### `clean_from_df()`
+Clean the raw data:
+
+```python
+def clean_from_df(self, df: pd.DataFrame) -> pd.DataFrame:
+    # Always work on a copy
+    cleaned = df.copy()
+    
+    # Common cleaning steps:
+    
+    # 1. Standardize column names
+    cleaned.columns = cleaned.columns.str.lower().str.replace(' ', '_')
+    
+    # 2. Handle missing values
+    cleaned['population'] = cleaned['population'].fillna(0)
+    cleaned = cleaned.dropna(subset=['country_code'])  # Drop if key column missing
+    
+    # 3. Fix data types
+    cleaned['date'] = pd.to_datetime(cleaned['date'])
+    cleaned['gdp'] = pd.to_numeric(cleaned['gdp'], errors='coerce')
+    
+    # 4. Filter to relevant data
+    cleaned = cleaned[cleaned['year'] >= 2000]
+    
+    # 5. Ensure join keys exist (check project-tracking!)
+    # These columns must be present for merging with other datasets
+    required_columns = ['country_code', 'year']  # Example
+    assert all(col in cleaned.columns for col in required_columns)
+    
+    return cleaned
+```
+
+### Step 4: Test Your Cleaner
+
+```bash
+# Run your cleaner
+python data_cleaning.py
+
+# Run with validation tests
+python data_cleaning.py --test
+
+# See what info your cleaner provides
+python data_cleaning.py --info
+```
+
+If tests fail, read the error messages — they'll tell you what needs fixing.
+
+### Step 5: Commit and Push Your Changes
+
+**Using GitHub Desktop**:
+1. You'll see your changes listed
+2. Write a commit message (e.g., "Implement World Bank data cleaner")
+3. Click `Commit to main`
+4. Click `Push origin`
+
+**Using Terminal**:
+```bash
+git add cleaner.py
+git commit -m "Implement World Bank data cleaner"
+git push origin main
+```
+
 ---
 
-## 💾 Where Your Files Go
+## Tips for Success
 
-* Raw downloads go in: `data/raw/`
-* Temporary stuff goes in: `data/temp/`
-* Cleaned data is **automatically saved** in:
-  `data/cleaned/my_data_cleaned.csv`
+### Common Cleaning Tasks
 
-⚠️ You don’t need to save files yourself — just return the DataFrame!
+**Standardize column names**:
+```python
+# Remove spaces, make lowercase
+df.columns = df.columns.str.lower().str.replace(' ', '_')
+```
 
----
+**Handle different types of missing values**:
+```python
+# Replace various null representations
+df.replace(['N/A', 'NA', '-', ''], pd.NA, inplace=True)
+```
 
-## 📦 Using Extra Packages?
+**Parse dates consistently**:
+```python
+# Handle different date formats
+df['date'] = pd.to_datetime(df['date'], errors='coerce')
+```
 
-If you use libraries like `requests`, `geopandas`, or `beautifulsoup`, create a file like this:
+**Remove duplicates intelligently**:
+```python
+# Keep the most recent record for each country
+df.sort_values('date', ascending=False).drop_duplicates(['country'])
+```
 
-**`requirements.txt`**
+### Debugging Tips
 
+1. **Use logging**: The cleaner has a built-in logger
+   ```python
+   self.logger.info(f"Downloaded {len(df)} records")
+   self.logger.warning(f"Dropped {null_count} rows with missing data")
+   ```
+
+2. **Test incrementally**: Don't write all cleaning steps at once. Add one, test, repeat.
+
+3. **Check the output**: Look at `data/cleaned/cleaned_data.csv` after running
+
+4. **Run validation tests**: They catch common issues like empty data or missing columns
+
+### Using Additional Packages
+
+If you need extra libraries, add them to `requirements.txt`:
 ```
 requests>=2.28.0
-pandas>=1.5.0
+beautifulsoup4>=4.11.0
+openpyxl>=3.0.0  # For Excel files
 ```
 
-We’ll install them automatically when we run your cleaner.
+---
+
+## Working with Different Data Sources
+
+### CSV from URL
+```python
+def download_to_df(self):
+    return pd.read_csv("https://data.example.com/file.csv")
+```
+
+### API with Authentication
+```python
+def download_to_df(self):
+    headers = {'Authorization': 'Bearer YOUR_TOKEN'}
+    response = requests.get("https://api.example.com/data", headers=headers)
+    response.raise_for_status()  # Check for errors
+    return pd.DataFrame(response.json()['results'])
+```
+
+### Excel Files
+```python
+def download_to_df(self):
+    return pd.read_excel("https://example.com/data.xlsx", sheet_name="Data")
+```
+
+### Web Scraping
+```python
+def download_to_df(self):
+    # Only if no API/direct download available!
+    response = requests.get("https://example.com/table")
+    soup = BeautifulSoup(response.content, 'html.parser')
+    # ... scraping logic ...
+    return pd.DataFrame(scraped_data)
+```
 
 ---
 
-## 🧪 How Testing Works
+## Quick Checklist
 
-When we run your cleaner, the system checks:
+Before submitting:
 
-* Is your data empty?
-* Are all the columns missing?
-* Are the data types consistent?
-* Is memory usage too high?
-
----
-
-## ✅ Quick Checklist
-
-✅ You made a folder in `cleaners/`
-
-✅ You created a `data_cleaner` (replace the file name with the `Cleaner File` name from the `project-tracking` document)
-
-✅ You made a `Cleaner` class
-
-✅ You filled in `download_to_df()`, `clean_from_df()`, and `get_metadata()`
-
-✅ You tested it with the command
-
-✅ You’re done 🎉
+- [ ] `get_metadata()` returns accurate information about your data source
+- [ ] `download_to_df()` successfully downloads the data
+- [ ] `clean_from_df()` handles all data quality issues you identified
+- [ ] Required join keys from `project-tracking` are present in cleaned data
+- [ ] `python data_cleaning.py --test` passes all tests
+- [ ] Committed and pushed your changes to GitHub
 
 ---
 
-## 💬 Still Confused?
+## Getting Help
 
-Here’s what you can do:
+- **Look at the example**: Run `python data_cleaning.py --cleaner-file example_cleaner` to see a working cleaner
+- **Check test details**: If tests fail, read the specific error messages
+- **Ask questions**: Reach out to your team lead or post in the project chat
 
-* Look at other folders in `cleaners/` to see examples
-* Read `core/base_cleaner.py` to understand how it works
-* Ask for help on the discussion board or chat
-
----
-
-That’s it! You’ve got this. Just follow the steps, and your cleaner will work in the pipeline automatically. 🚀✨
+Remember: The goal is clean, consistent data that can be merged with other datasets in your ML pipeline. Take time to understand your data — it's worth it!
