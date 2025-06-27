@@ -1,6 +1,7 @@
 """
-Data cleaner implementation
-Fill in the methods below to create your data cleaner
+Default data cleaner template
+Located in: cleaners/YOUR_CLEANER_HERE/cleaner.py
+Copy this folder to create new cleaners!
 
 REQUIRED METHODS:
 - get_metadata(): Provide information about your data source
@@ -15,7 +16,10 @@ OPTIONAL METHODS:
 import pandas as pd
 from pathlib import Path
 from typing import Dict, Any
+import sys
 
+# Add parent directories to path to import base_cleaner
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from base_cleaner import BaseCleaner
 
 

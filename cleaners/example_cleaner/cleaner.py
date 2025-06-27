@@ -1,11 +1,11 @@
 """
 Example data cleaner that works entirely in memory
-To use this instead of cleaner.py, run: python data_cleaning.py --cleaner-file example_cleaner
+Located in: cleaners/example/cleaner.py
+To use: python data_cleaning.py --cleaner-name example
 """
 import pandas as pd
 import numpy as np
 from typing import Dict, Any
-import logging
 
 from base_cleaner import BaseCleaner
 

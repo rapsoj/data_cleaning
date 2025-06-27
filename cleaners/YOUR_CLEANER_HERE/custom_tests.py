@@ -1,9 +1,9 @@
 """
-Custom tests specific to this project
+Custom tests specific to this cleaner
 
 === HOW TO ADD CUSTOM TESTS ===
 
-This file is where you add validation tests specific to your project's data.
+This file is where you add validation tests specific to your cleaner's data.
 The test runner will automatically discover and run any function that starts with 'test_'.
 
 IMPORTANT: All test functions must accept exactly ONE parameter: the DataFrame (df)

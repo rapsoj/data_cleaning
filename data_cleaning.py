@@ -1,6 +1,6 @@
 """
 Data cleaning pipeline runner
-Runs the cleaner defined in cleaner.py (or another file specified via --cleaner-file)
+Runs cleaners from the cleaners/ directory structure
 """
 import importlib.util
 import sys
@@ -9,26 +9,70 @@ import pandas as pd
 import logging
 import traceback
 from typing import Optional, Dict, Any
+import os
 
 # Import the test runner
 from tests.test_runner import TestRunner
 
 
 class DataCleaningPipeline:
-    """Simple data cleaning orchestrator - one cleaner per project"""
+    """Simple data cleaning orchestrator - supports multiple cleaners in cleaners/ directory"""
 
-    def __init__(self, cleaner_file: str = "cleaner"):
+    def __init__(self, cleaner_name: str):
         self.logger = logging.getLogger(__name__)
-        # Strip .py extension if provided
-        self.cleaner_file = cleaner_file.rstrip('.py') if cleaner_file.endswith('.py') else cleaner_file
+        self.cleaner_name = cleaner_name
+        self.cleaner_dir = None  # Will be set by _load_cleaner
         self.cleaner_class = self._load_cleaner()
-        self.test_runner = TestRunner()
+        self.test_runner = TestRunner(cleaner_dir=self.cleaner_dir)
 
     def _load_cleaner(self):
-        """Load the cleaner class from the specified file"""
+        """Load the cleaner class from the cleaners directory"""
         try:
-            # Import the cleaner module
-            module = importlib.import_module(self.cleaner_file)
+            # Look for the cleaner in the cleaners directory
+            cleaners_dir = Path("cleaners")
+            cleaner_dir = cleaners_dir / self.cleaner_name
+
+            if not cleaner_dir.exists():
+                raise ValueError(f"Cleaner directory not found: {cleaner_dir}")
+
+            # Store cleaner directory for test runner
+            self.cleaner_dir = cleaner_dir
+
+            # Check for cleaner.py or {cleaner_name}.py
+            possible_files = [
+                cleaner_dir / "cleaner.py",
+                cleaner_dir / f"{self.cleaner_name}.py"
+            ]
+
+            cleaner_file = None
+            for file_path in possible_files:
+                if file_path.exists():
+                    cleaner_file = file_path
+                    break
+
+            if not cleaner_file:
+                raise ValueError(
+                    f"No cleaner file found in {cleaner_dir}. "
+                    f"Expected 'cleaner.py' or '{self.cleaner_name}.py'"
+                )
+
+            # Load the module from the file path
+            spec = importlib.util.spec_from_file_location(
+                f"cleaners.{self.cleaner_name}.cleaner",
+                cleaner_file
+            )
+            module = importlib.util.module_from_spec(spec)
+
+            # Add the cleaner directory to sys.path temporarily so imports work
+            old_path = sys.path.copy()
+            sys.path.insert(0, str(cleaner_dir.parent))  # Add cleaners/ dir
+            sys.path.insert(0, str(cleaner_dir))  # Add specific cleaner dir
+
+            try:
+                spec.loader.exec_module(module)
+            finally:
+                # Restore original path
+                sys.path = old_path
 
             # Find the Cleaner class
             for attr_name in dir(module):
@@ -36,22 +80,42 @@ class DataCleaningPipeline:
                 if (isinstance(attr, type) and
                     attr_name.endswith('Cleaner') and
                     attr_name not in ['BaseCleaner', 'Cleaner']):
-                    self.logger.info(f"Loaded cleaner: {attr_name} from {self.cleaner_file}.py")
+                    self.logger.info(
+                        f"Loaded cleaner: {attr_name} from {cleaner_file.relative_to(cleaners_dir)}"
+                    )
                     return attr
 
             # If no custom cleaner found, look for the generic 'Cleaner' class
             if hasattr(module, 'Cleaner'):
-                self.logger.info(f"Loaded cleaner: Cleaner from {self.cleaner_file}.py")
+                self.logger.info(
+                    f"Loaded cleaner: Cleaner from {cleaner_file.relative_to(cleaners_dir)}"
+                )
                 return module.Cleaner
 
-            raise ValueError(f"No Cleaner class found in {self.cleaner_file}.py")
+            raise ValueError(f"No Cleaner class found in {cleaner_file}")
 
         except ImportError as e:
-            self.logger.error(f"Failed to import {self.cleaner_file}.py: {e}")
+            self.logger.error(f"Failed to import cleaner '{self.cleaner_name}': {e}")
             raise
         except Exception as e:
-            self.logger.error(f"Failed to load cleaner: {e}")
+            self.logger.error(f"Failed to load cleaner '{self.cleaner_name}': {e}")
             raise
+
+    def list_available_cleaners(self) -> list:
+        """List all available cleaners in the cleaners directory"""
+        cleaners_dir = Path("cleaners")
+        if not cleaners_dir.exists():
+            return []
+
+        cleaners = []
+        for item in cleaners_dir.iterdir():
+            if item.is_dir() and not item.name.startswith('__'):
+                # Check if it has a cleaner.py or {name}.py file
+                has_cleaner = (item / "cleaner.py").exists() or (item / f"{item.name}.py").exists()
+                if has_cleaner:
+                    cleaners.append(item.name)
+
+        return sorted(cleaners)
 
     def run(self, use_disk: bool = False,
             output_dir: Optional[Path] = None,
@@ -61,7 +125,7 @@ class DataCleaningPipeline:
 
         Args:
             use_disk: If True, use disk-based processing if available
-            output_dir: Output directory (defaults to data/cleaned/)
+            output_dir: Output directory (defaults to data/cleaned/{cleaner_name}/)
             skip_tests: If True, skip validation tests
 
         Returns:
@@ -72,7 +136,7 @@ class DataCleaningPipeline:
             cleaner = self.cleaner_class()
             capabilities = cleaner.get_capabilities()
 
-            self.logger.info(f"Running {self.cleaner_class.__name__}...")
+            self.logger.info(f"Running {self.cleaner_class.__name__} from '{self.cleaner_name}' cleaner...")
             self.logger.info(f"Source: {cleaner.get_metadata().get('source', 'Unknown')}")
 
             # Download data
@@ -107,7 +171,7 @@ class DataCleaningPipeline:
 
             # Execute download
             if use_path_method:
-                raw_dir = Path("data/raw")
+                raw_dir = Path("data/raw") / self.cleaner_name
                 raw_dir.mkdir(parents=True, exist_ok=True)
                 data_path = cleaner.download_to_path(raw_dir)
                 data_ref = data_path
@@ -172,7 +236,7 @@ class DataCleaningPipeline:
 
             # Save cleaned data
             if output_dir is None:
-                output_dir = Path("data/cleaned")
+                output_dir = Path("data/cleaned") / self.cleaner_name
 
             output_path = output_dir / "cleaned_data.csv"
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -213,7 +277,8 @@ class DataCleaningPipeline:
             capabilities = cleaner.get_capabilities()
 
             print(f"\nCleaner: {self.cleaner_class.__name__}")
-            print(f"File: {self.cleaner_file}.py")
+            print(f"Name: {self.cleaner_name}")
+            print(f"Location: cleaners/{self.cleaner_name}/")
             print("\nMetadata:")
             for key, value in metadata.items():
                 print(f"  {key}: {value}")
@@ -243,12 +308,11 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python data_cleaning.py                    # Run the cleaner
-  python data_cleaning.py --test             # Test the cleaner
-  python data_cleaning.py --info             # Show cleaner info
-  python data_cleaning.py --skip-tests       # Run without validation
-  python data_cleaning.py --cleaner-file example_cleaner      # Use example_cleaner.py
-  python data_cleaning.py --cleaner-file example_cleaner.py   # Also works!
+  python data_cleaning.py --cleaner-name example_cleaner     # Run the example cleaner
+  python data_cleaning.py --test --cleaner-name example_cleaner  # Test the example cleaner
+  python data_cleaning.py --info --cleaner-name example_cleaner  # Show cleaner info
+  python data_cleaning.py --skip-tests --cleaner-name example_cleaner  # Run without validation
+  python data_cleaning.py --list                     # List all available cleaners
         """
     )
 
@@ -262,14 +326,16 @@ Examples:
                        help='List all available validation tests')
     parser.add_argument('--info', action='store_true',
                        help='Show information about the cleaner')
+    parser.add_argument('--list', action='store_true',
+                       help='List all available cleaners')
     parser.add_argument('--output-dir', type=str,
-                       help='Output directory for cleaned data (default: data/cleaned/)')
-    parser.add_argument('--cleaner-file', type=str, default='cleaner',
-                       help='Python file containing the Cleaner class (with or without .py extension, default: cleaner.py)')
+                       help='Output directory for cleaned data (default: data/cleaned/{cleaner_name}/)')
+    parser.add_argument('--cleaner-name', type=str,
+                       help='Name of the cleaner to run (required unless using --list or --list-tests)')
 
     args = parser.parse_args()
 
-    # Handle list-tests separately (doesn't need a cleaner)
+    # Handle list operations that don't need a specific cleaner
     if args.list_tests:
         test_runner = TestRunner()
         print("Available validation tests:")
@@ -278,11 +344,66 @@ Examples:
             print(f"  - {name} (from {module})")
         sys.exit(0)
 
-    # Initialize pipeline with specified cleaner file
+    if args.list:
+        # Create a temporary pipeline just to get the list functionality
+        # We use a dummy name since we're only listing, not loading
+        try:
+            cleaners_dir = Path("cleaners")
+            if not cleaners_dir.exists():
+                print("No cleaners/ directory found")
+                sys.exit(1)
+
+            cleaners = []
+            for item in cleaners_dir.iterdir():
+                if item.is_dir() and not item.name.startswith('__'):
+                    # Check if it has a cleaner.py or {name}.py file
+                    has_cleaner = (item / "cleaner.py").exists() or (item / f"{item.name}.py").exists()
+                    if has_cleaner:
+                        cleaners.append(item.name)
+
+            if cleaners:
+                print("Available cleaners:")
+                for cleaner in sorted(cleaners):
+                    print(f"  - {cleaner}")
+            else:
+                print("No cleaners found in cleaners/ directory")
+        except Exception as e:
+            logging.error(f"Error listing cleaners: {e}")
+        sys.exit(0)
+
+    # Check if cleaner name was provided for operations that need it
+    if not args.cleaner_name:
+        print("\n❌ Error: No cleaner specified!")
+        print("\nYou must specify which cleaner to run using --cleaner-name")
+        print("\nExamples:")
+        print("  python data_cleaning.py --cleaner-name example_cleaner    # Run the example cleaner")
+        print("  python data_cleaning.py --list                     # List all available cleaners")
+        print("  python data_cleaning.py --help                     # Show all options")
+
+        # Try to list available cleaners to help the user
+        cleaners_dir = Path("cleaners")
+        if cleaners_dir.exists():
+            cleaners = []
+            for item in cleaners_dir.iterdir():
+                if item.is_dir() and not item.name.startswith('__'):
+                    has_cleaner = (item / "cleaner.py").exists() or (item / f"{item.name}.py").exists()
+                    if has_cleaner:
+                        cleaners.append(item.name)
+
+            if cleaners:
+                print("\nAvailable cleaners:")
+                for cleaner in sorted(cleaners):
+                    print(f"  - {cleaner}")
+
+        sys.exit(1)
+
+    # Initialize pipeline with specified cleaner
     try:
-        pipeline = DataCleaningPipeline(cleaner_file=args.cleaner_file)
+        pipeline = DataCleaningPipeline(cleaner_name=args.cleaner_name)
     except Exception as e:
         logging.error(f"Failed to initialize pipeline: {e}")
+        if "not found" in str(e):
+            logging.info("Use --list to see available cleaners")
         sys.exit(1)
 
     # Handle different modes
@@ -290,7 +411,7 @@ Examples:
         pipeline.info()
 
     elif args.test:
-        print(f"\nTesting {args.cleaner_file}.py...")
+        print(f"\nTesting '{args.cleaner_name}' cleaner...")
         results = pipeline.test()
 
         if results.get('passed') is not None:
