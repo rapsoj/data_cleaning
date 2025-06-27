@@ -36,9 +36,9 @@ python data_cleaning.py --help
 
 ## Documentation
 
-📚 **[Student Guide](docs/STUDENT_GUIDE.md)** - Step-by-step instructions for implementing a data cleaner
+📚 **[Student Guide](docs/student_guide.md)** - Step-by-step instructions for implementing a data cleaner
 
-📖 **[User Guide](docs/USER_GUIDE.md)** - Complete reference for all features and options
+📖 **[User Guide](docs/user_guide.md)** - Complete reference for all features and options
 
 ## Basic Usage
 
