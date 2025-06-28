@@ -18,67 +18,47 @@ Each test must return a dictionary with these keys:
         'message': str,          # Required: Human-readable result message
         'details': dict          # Optional: Additional information about the test
     }
-
-SIMPLE EXAMPLE:
-    def test_has_price_column(df):
-        passed = 'price' in df.columns
-        return {
-            'passed': passed,
-            'message': 'Price column exists' if passed else 'Missing price column',
-            'details': {'columns': list(df.columns)}
-        }
-
-COMPLEX EXAMPLE:
-    def test_price_is_positive(df):
-        if 'price' not in df.columns:
-            return {
-                'passed': False,
-                'message': 'Cannot check prices - price column missing',
-                'details': {}
-            }
-
-        negative_prices = (df['price'] < 0).sum()
-        total_prices = len(df['price'].dropna())
-        passed = negative_prices == 0
-
-        return {
-            'passed': passed,
-            'message': f'Found {negative_prices} negative prices out of {total_prices}',
-            'details': {
-                'negative_count': int(negative_prices),
-                'total_count': int(total_prices),
-                'min_price': float(df['price'].min()) if total_prices > 0 else None,
-                'max_price': float(df['price'].max()) if total_prices > 0 else None
-            }
-        }
-
-TEST CATEGORIES TO CONSIDER:
-1. **Required Columns**: Check if essential columns exist
-2. **Data Types**: Verify columns have correct types (numeric, date, string)
-3. **Value Ranges**: Ensure values fall within expected bounds
-4. **Relationships**: Validate relationships between columns
-5. **Business Rules**: Check domain-specific constraints
-6. **Completeness**: Verify required fields are not null
-7. **Consistency**: Ensure data follows expected patterns
-
-BEST PRACTICES:
-- Make test names descriptive: test_population_is_positive not test_pop
-- Return helpful messages that explain what went wrong
-- Include relevant details to help debugging
-- Handle edge cases (empty df, missing columns)
-- Convert numpy types to Python types in details (use int(), float(), etc.)
-- Consider making some tests warnings (passed=True with warning in message)
-
-TIPS:
-- Access columns safely: use 'column' in df.columns before accessing
-- Handle NaN values: use df['col'].dropna() when needed
-- For numeric comparisons, consider using pandas methods like .any(), .all()
-- Remember that df might be empty or have unexpected structure
-- Use type hints for clarity (though not required)
 """
 import pandas as pd
 from typing import Dict, Any
 
 
-# Add your custom test functions below this line
-# Remember: All functions must start with 'test_' and accept only a DataFrame parameter
+def test_has_exactly_three_columns(df: pd.DataFrame) -> Dict[str, Any]:
+    """Check that we have exactly the three expected columns"""
+    expected_columns = ['date', 'value', 'category']
+    actual_columns = list(df.columns)
+
+    passed = len(actual_columns) == 3 and all(col in actual_columns for col in expected_columns)
+
+    return {
+        'passed': passed,
+        'message': 'Has exactly 3 columns: date, value, category' if passed else f'Expected 3 specific columns, got {len(actual_columns)}',
+        'details': {
+            'expected_columns': expected_columns,
+            'actual_columns': actual_columns
+        }
+    }
+
+
+def test_categories_only_ABC(df: pd.DataFrame) -> Dict[str, Any]:
+    """Check that categories are exactly A, B, and C (uppercase)"""
+    if 'category' not in df.columns:
+        return {
+            'passed': False,
+            'message': 'Category column missing',
+            'details': {}
+        }
+
+    unique_categories = sorted(df['category'].unique())
+    expected_categories = ['A', 'B', 'C']
+
+    passed = unique_categories == expected_categories
+
+    return {
+        'passed': passed,
+        'message': 'Categories are exactly A, B, C' if passed else f'Categories should be A, B, C but got {unique_categories}',
+        'details': {
+            'expected': expected_categories,
+            'actual': unique_categories
+        }
+    }
