@@ -5,6 +5,7 @@ Runs cleaners from the cleaners/ directory structure
 import importlib.util
 import sys
 from pathlib import Path
+import numpy as np
 import pandas as pd
 import logging
 import traceback
@@ -120,98 +121,43 @@ class DataCleaningPipeline:
     def run(self, use_disk: bool = False,
             output_dir: Optional[Path] = None,
             skip_tests: bool = False) -> Optional[pd.DataFrame]:
-        """
-        Run the data cleaner
-
-        Args:
-            use_disk: If True, use disk-based processing if available
-            output_dir: Output directory (defaults to data/cleaned/{cleaner_name}/)
-            skip_tests: If True, skip validation tests
-
-        Returns:
-            Cleaned DataFrame if successful, None if failed
-        """
         try:
-            # Instantiate the cleaner
             cleaner = self.cleaner_class()
-            capabilities = cleaner.get_capabilities()
 
             self.logger.info(f"Running {self.cleaner_class.__name__} from '{self.cleaner_name}' cleaner...")
-            self.logger.info(f"Source: {cleaner.get_metadata().get('source', 'Unknown')}")
+            self.logger.info(f"Source: {getattr(cleaner, 'get_metadata', lambda: {})().get('source', 'Unknown')}")
 
             # Download data
             self.logger.info("Downloading data...")
+            data_ref = cleaner.download_data()
 
-            # Determine which download method to use
-            has_df_download = capabilities.get('download_to_df', False)
-            has_path_download = capabilities.get('download_to_path', False)
-
-            if not has_df_download and not has_path_download:
-                raise NotImplementedError(
-                    "Cleaner must implement download_to_df() or download_to_path()"
-                )
-
-            # Choose download method based on availability and preference
-            use_path_method = False
-            if has_path_download and has_df_download:
-                # Both available - use disk flag to decide
-                use_path_method = use_disk
-                if use_disk:
-                    self.logger.info("Both download methods available, using disk-based as requested")
-                else:
-                    self.logger.info("Both download methods available, using memory-based")
-            elif has_path_download:
-                # Only path available
-                use_path_method = True
-                self.logger.info("Using disk-based download (only method available)")
+            if isinstance(data_ref, Path):
+                self.logger.info(f"Downloaded data to disk: {data_ref}")
+            elif isinstance(data_ref, (pd.DataFrame, np.ndarray)):
+                self.logger.info("Downloaded data to memory")
             else:
-                # Only df available
-                use_path_method = False
-                self.logger.info("Using memory-based download (only method available)")
+                raise TypeError("download_data() must return a DataFrame, ndarray, or Path")
 
-            # Execute download
-            if use_path_method:
-                raw_dir = Path("data/raw") / self.cleaner_name
-                raw_dir.mkdir(parents=True, exist_ok=True)
-                data_path = cleaner.download_to_path(raw_dir)
-                data_ref = data_path
-                self.logger.info(f"Downloaded data to: {data_path}")
-            else:
-                data_ref = cleaner.download_to_df()
-                self.logger.info(f"Downloaded data to memory")
-
-            # Clean data - match the cleaning method to download method
+            # Clean data
             self.logger.info("Cleaning data...")
+            cleaned_df = cleaner.clean_data(data_ref)
 
-            if use_path_method:
-                # We used download_to_path, so need clean_from_path
-                if capabilities.get('clean_from_path'):
-                    cleaned_df = cleaner.clean_from_path(data_ref)
-                else:
-                    raise NotImplementedError(
-                        f"Cleaner implements download_to_path() but not clean_from_path(). "
-                        f"Please implement clean_from_path() or use download_to_df() instead."
-                    )
-            else:
-                # We used download_to_df, so need clean_from_df
-                if capabilities.get('clean_from_df'):
-                    cleaned_df = cleaner.clean_from_df(data_ref)
-                else:
-                    raise NotImplementedError(
-                        f"Cleaner implements download_to_df() but not clean_from_df(). "
-                        f"Please implement clean_from_df() or use download_to_path() instead."
-                    )
+            if not isinstance(cleaned_df, (pd.DataFrame, np.ndarray)):
+                raise TypeError("clean_data() must return a DataFrame or ndarray")
+
+            if isinstance(cleaned_df, np.ndarray):
+                cleaned_df = pd.DataFrame(cleaned_df)
 
             self.logger.info(f"Cleaned {len(cleaned_df)} records with {len(cleaned_df.columns)} columns")
 
-            # Run custom validation if implemented
+            # Optional validation
             if hasattr(cleaner, 'validate_output'):
                 self.logger.info("Running custom validation...")
                 if not cleaner.validate_output(cleaned_df):
                     self.logger.error("Custom validation failed")
                     return None
 
-            # Run test suite unless skipped
+            # Test suite
             if not skip_tests:
                 self.logger.info("Running validation tests...")
                 test_results = self.test_runner.run_tests(cleaned_df)
@@ -219,15 +165,11 @@ class DataCleaningPipeline:
                 if not test_results['passed']:
                     self.logger.error(
                         f"\nValidation tests failed:\n"
-                        f"  Passed: {test_results['passed_tests']}/{test_results['total_tests']}\n"
-                        f"  Failed tests:"
+                        f"  Passed: {test_results['passed_tests']}/{test_results['total_tests']}"
                     )
-                    # Show failed tests
                     for test_name, result in test_results['test_details'].items():
                         if not result['passed']:
                             self.logger.error(f"    ✗ {test_name}: {result['message']}")
-
-                    self.logger.info("\nTo save data anyway, run with --skip-tests")
                     return None
                 else:
                     self.logger.info(
@@ -284,9 +226,9 @@ class DataCleaningPipeline:
                 print(f"  {key}: {value}")
 
             print("\nCapabilities:")
-            print(f"  Download to memory: {'✓' if capabilities.get('download_to_df') else '✗'}")
+            print(f"  Download to memory: {'✓' if capabilities.get('download_data') else '✗'}")
             print(f"  Download to disk: {'✓' if capabilities.get('download_to_path') else '✗'}")
-            print(f"  Clean from memory: {'✓' if capabilities.get('clean_from_df') else '✗'}")
+            print(f"  Clean from memory: {'✓' if capabilities.get('clean_data') else '✗'}")
             print(f"  Clean from disk: {'✓' if capabilities.get('clean_from_path') else '✗'}")
 
         except Exception as e:

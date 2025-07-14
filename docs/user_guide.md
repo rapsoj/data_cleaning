@@ -185,11 +185,11 @@ class Cleaner(BaseCleaner):
             'update_frequency': 'daily/weekly/monthly/static'
         }
     
-    def download_to_df(self):
+    def download_data(self):
         # Download and return raw data
         return pd.read_csv('https://example.com/data.csv')
     
-    def clean_from_df(self, df):
+    def clean_data(self, df):
         # Clean and return the data
         cleaned = df.copy()
         # ... cleaning steps ...
@@ -242,7 +242,7 @@ class Cleaner(BaseCleaner):
 ### Error Handling
 
 ```python
-def download_to_df(self):
+def download_data(self):
     try:
         response = requests.get(self.url)
         response.raise_for_status()

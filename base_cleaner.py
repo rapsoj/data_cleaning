@@ -5,7 +5,8 @@ All cleaners should inherit from this class and implement the required methods
 from abc import ABC, abstractmethod
 from pathlib import Path
 import pandas as pd
-from typing import Dict, Any
+import numpy as np
+from typing import Dict, Any, Union, Literal
 import logging
 
 
@@ -40,31 +41,28 @@ class BaseCleaner(ABC):
         pass
 
     @abstractmethod
-    def download_to_df(self) -> pd.DataFrame:
+    def download_data(self, format: Literal['dataframe', 'array'] = 'dataframe') -> Union[pd.DataFrame, np.ndarray]:
         """
-        Download data and return as DataFrame.
-        Use this for datasets that fit comfortably in memory.
+        Download raw data in the desired format.
+
+        Args:
+            format: 'dataframe' or 'array' — determines return type.
 
         Returns:
-            pd.DataFrame: The raw data
-
-        Example:
-            response = requests.get('https://api.example.com/data')
-            return pd.DataFrame(response.json())
+            Union[pd.DataFrame, np.ndarray]: The raw data
         """
         pass
 
     @abstractmethod
-    def clean_from_df(self, df: pd.DataFrame) -> pd.DataFrame:
+    def clean_data(self, raw_data: Union[pd.DataFrame, np.ndarray]) -> Union[pd.DataFrame, np.ndarray]:
         """
-        Clean the raw DataFrame.
-        This is where your main data cleaning logic goes.
+        Clean raw data, which may be either a DataFrame or a NumPy array.
 
         Args:
-            df: Raw DataFrame from download_to_df()
+            raw_data: The raw input data.
 
         Returns:
-            pd.DataFrame: Cleaned data
+            Cleaned data of the same type.
 
         Common cleaning steps:
             - Rename columns to consistent format
@@ -94,17 +92,19 @@ class BaseCleaner(ABC):
     def clean_from_path(self, data_path: Path) -> pd.DataFrame:
         """
         Clean data from a file path (for large files).
-        Override this if you need to process files in chunks.
 
         Args:
             data_path: Path to the raw data file
 
         Returns:
-            pd.DataFrame: Cleaned data
+            Cleaned data (assumed to be a DataFrame here)
         """
-        # Default implementation: just load and clean in memory
         df = pd.read_csv(data_path)
-        return self.clean_from_df(df)
+        cleaned = self.clean_data(df)
+        if isinstance(cleaned, pd.DataFrame):
+            return cleaned
+        else:
+            raise TypeError("clean_data must return a DataFrame when cleaning from path.")
 
     def validate_output(self, df: pd.DataFrame) -> bool:
         """
@@ -128,14 +128,22 @@ class BaseCleaner(ABC):
 
         return True
 
-    def get_capabilities(self) -> Dict[str, bool]:
-        """
-        Return which methods this cleaner implements.
-        Used by the pipeline to determine how to run the cleaner.
-        """
+    def get_capabilities(self) -> Dict[str, Any]:
+        supported_formats = []
+        try:
+            self.download_data(format='dataframe')
+            supported_formats.append('dataframe')
+        except Exception:
+            pass
+        try:
+            self.download_data(format='array')
+            supported_formats.append('array')
+        except Exception:
+            pass
+
         return {
-            'download_to_df': hasattr(self, 'download_to_df') and callable(self.download_to_df),
-            'download_to_path': hasattr(self, 'download_to_path') and callable(self.download_to_path),
-            'clean_from_df': hasattr(self, 'clean_from_df') and callable(self.clean_from_df),
+            'download_data': True,
+            'supported_formats': supported_formats,
+            'clean_data': hasattr(self, 'clean_data') and callable(self.clean_data),
             'clean_from_path': hasattr(self, 'clean_from_path') and callable(self.clean_from_path),
         }

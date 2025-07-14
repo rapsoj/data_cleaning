@@ -11,7 +11,7 @@ Welcome! This guide will help you write a **data cleaner** that fits into our ma
 A **data cleaner** is Python code that:
 
 1. **Downloads** raw data from a source
-2. **Cleans it up** (fixes missing values, standardizes formats, selects relevant columns)
+2. **Cleans it up** (fixes missing values, standardises formats, selects relevant columns)
 3. **Returns clean data** ready for machine learning
 
 Our system handles saving results and running tests — you just need to write the cleaning logic.
@@ -83,7 +83,7 @@ cd your-project
 
 ### Step 2: Edit the Cleaner File
 
-1. Open `cleaner.py` in your favorite editor (VS Code recommended)
+1. Open `cleaner.py` in your favourite editor (VS Code recommended)
 2. You'll see a template with empty functions to fill in
 3. Replace the TODO comments with your actual code
 
@@ -102,11 +102,11 @@ def get_metadata(self) -> Dict[str, Any]:
     }
 ```
 
-#### `download_to_df()`
+#### `download_data()`
 Download your raw data:
 
 ```python
-def download_to_df(self) -> pd.DataFrame:
+def download_data(self) -> pd.DataFrame:
     # For a CSV from URL:
     return pd.read_csv("https://example.com/data.csv")
     
@@ -118,7 +118,7 @@ def download_to_df(self) -> pd.DataFrame:
     return pd.read_csv("data/raw/my_data.csv")
 ```
 
-#### `clean_from_df()`
+#### `clean_data()`
 Clean the raw data:
 
 ```python
@@ -128,7 +128,7 @@ def clean_from_df(self, df: pd.DataFrame) -> pd.DataFrame:
     
     # Common cleaning steps:
     
-    # 1. Standardize column names
+    # 1. Standardise column names
     cleaned.columns = cleaned.columns.str.lower().str.replace(' ', '_')
     
     # 2. Handle missing values
@@ -186,7 +186,7 @@ git push origin main
 
 ### Common Cleaning Tasks
 
-**Standardize column names**:
+**Standardise column names**:
 ```python
 # Remove spaces, make lowercase
 df.columns = df.columns.str.lower().str.replace(' ', '_')
@@ -239,13 +239,13 @@ openpyxl>=3.0.0  # For Excel files
 
 ### CSV from URL
 ```python
-def download_to_df(self):
+def download_data(self):
     return pd.read_csv("https://data.example.com/file.csv")
 ```
 
 ### API with Authentication
 ```python
-def download_to_df(self):
+def download_data(self):
     headers = {'Authorization': 'Bearer YOUR_TOKEN'}
     response = requests.get("https://api.example.com/data", headers=headers)
     response.raise_for_status()  # Check for errors
@@ -254,13 +254,13 @@ def download_to_df(self):
 
 ### Excel Files
 ```python
-def download_to_df(self):
+def download_data(self):
     return pd.read_excel("https://example.com/data.xlsx", sheet_name="Data")
 ```
 
 ### Web Scraping
 ```python
-def download_to_df(self):
+def download_data(self):
     # Only if no API/direct download available!
     response = requests.get("https://example.com/table")
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -275,8 +275,8 @@ def download_to_df(self):
 Before submitting:
 
 - [ ] `get_metadata()` returns accurate information about your data source
-- [ ] `download_to_df()` successfully downloads the data
-- [ ] `clean_from_df()` handles all data quality issues you identified
+- [ ] `download_data()` successfully downloads the data
+- [ ] `clean_data()` handles all data quality issues you identified
 - [ ] Required join keys from `project-tracking` are present in cleaned data
 - [ ] `python data_cleaning.py --test` passes all tests
 - [ ] Committed and pushed your changes to GitHub
